@@ -7,6 +7,9 @@ export interface User {
   name: string;
   role: string;
   address?: string;
+  phone?: string;
+  last_login?: string;
+  created_at?: string;
 }
 
 export interface AuthContextType {
@@ -15,8 +18,8 @@ export interface AuthContextType {
   session: Session | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  isLoading: boolean;
-  hasAccess: (allowedRoles: string[]) => boolean;
   registerClient: (userData: { email: string, password: string, name: string, address: string }) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
+  isLoading: boolean;
+  hasAccess: (allowedRoles: string[]) => boolean;
 }
