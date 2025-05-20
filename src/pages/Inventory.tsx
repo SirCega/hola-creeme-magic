@@ -1,15 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Search, ArrowUpDown, Filter, Package, AlertTriangle, Plus, ArrowRightLeft } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import {
   Table,
   TableBody,
@@ -17,806 +12,479 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { Product, TransferRequest, useInventoryService } from '@/services/inventory.service';
-import { MovementHistory } from '@/components/inventory/MovementHistory';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertCircle, Plus, Truck, PackageCheck } from 'lucide-react';
+import { Product, TransferRequest } from '@/types/inventory-types';
+import { useInventoryService } from '@/hooks/useInventoryService';
+import MovementHistory from '@/components/inventory/MovementHistory';
 
 const Inventory: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentCategory, setCurrentCategory] = useState('all');
-  const [sortField, setSortField] = useState<keyof Product>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [inventoryData, setInventoryData] = useState<Product[]>([]);
-  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
-  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
-  const inventoryService = useInventoryService();
-  
-  const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
-    sku: '',
-    name: '',
-    category: '',
-    mainWarehouse: 0,
-    warehouse1: 0,
-    warehouse2: 0,
-    warehouse3: 0,
-    threshold: 0,
-    price: 0,
-    boxQty: 0
-  });
-  
-  const [transfer, setTransfer] = useState<TransferRequest>({
-    productId: 0,
-    sourceWarehouse: 'mainWarehouse',
-    destinationWarehouse: 'warehouse1',
-    quantity: 1
-  });
-  
-  useEffect(() => {
-    const data = inventoryService.getInventory();
-    setInventoryData(data);
-  }, []);
-  
-  const handleSort = (field: keyof Product) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
-  
-  const filteredInventory = inventoryData
-    .filter(item => 
-      (searchQuery === '' || 
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        item.sku.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (currentCategory === 'all' || item.category === currentCategory)
-    )
-    .sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-      
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortOrder === 'asc' 
-          ? aValue.localeCompare(bValue) 
-          : bValue.localeCompare(aValue);
-      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-      return 0;
-    });
+  const { 
+    products, 
+    warehouses,
+    loading, 
+    error, 
+    loadProducts, 
+    createProduct, 
+    updateProduct,
+    transferInventory 
+  } = useInventoryService();
 
-  const categories = Array.from(new Set(inventoryData.map(item => item.category)));
-  
-  const lowStockItems = inventoryData.filter(item => {
-    return (
-      item.warehouse1 < item.threshold || 
-      item.warehouse2 < item.threshold || 
-      item.warehouse3 < item.threshold
-    );
+  const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
+    name: '',
+    description: '',
+    category: '',
+    brand: '',
+    price: 0,
+    cost: 0,
+    sku: '',
+    stock: 0,
+    unit: '',
+    status: 'active',
+    box_qty: 0,
+    min_stock: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   });
-  
-  const handleNewProductChange = (field: string, value: string | number) => {
-    setNewProduct(prev => ({
-      ...prev,
-      [field]: typeof value === 'string' && field !== 'name' && field !== 'category' && field !== 'sku' 
-        ? parseFloat(value) || 0
-        : value
-    }));
-  };
-  
-  const handleCreateProduct = () => {
-    try {
-      if (!newProduct.sku || !newProduct.name || !newProduct.category) {
-        toast({
-          title: "Error",
-          description: "SKU, nombre y categoría son campos obligatorios",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      const createdProduct = inventoryService.addProduct(newProduct);
-      
-      setInventoryData(prev => [...prev, createdProduct]);
-      
-      setIsAddProductDialogOpen(false);
-      setNewProduct({
-        sku: '',
-        name: '',
-        category: '',
-        mainWarehouse: 0,
-        warehouse1: 0,
-        warehouse2: 0,
-        warehouse3: 0,
-        threshold: 0,
-        price: 0,
-        boxQty: 0
+
+  const [transferRequest, setTransferRequest] = useState<TransferRequest>({
+    product_id: '',
+    quantity: 0,
+    sourceWarehouseId: '',
+    destinationWarehouseId: '',
+    notes: ''
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadProducts();
+    }
+  }, [user]);
+
+  const lowStockProducts = products.filter(product => {
+    // Check if any warehouse is below min_stock
+    const isLowStock = product.stock < product.min_stock ||
+      (product.stock_1 ?? 0) < product.min_stock ||
+      (product.stock_2 ?? 0) < product.min_stock ||
+      (product.stock_3 ?? 0) < product.min_stock;
+    
+    return isLowStock;
+  });
+
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!transferRequest.product_id || !transferRequest.sourceWarehouseId || !transferRequest.destinationWarehouseId || transferRequest.quantity <= 0) {
+      toast({
+        title: "Error",
+        description: "Por favor complete todos los campos correctamente",
+        variant: "destructive"
       });
-    } catch (err) {
-      console.error(err);
+      return;
+    }
+    
+    if (transferRequest.sourceWarehouseId === transferRequest.destinationWarehouseId) {
+      toast({
+        title: "Error",
+        description: "El almacén de origen y destino no pueden ser el mismo",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const success = await transferInventory(
+        transferRequest.product_id,
+        transferRequest.sourceWarehouseId,
+        transferRequest.destinationWarehouseId,
+        transferRequest.quantity
+      );
+      
+      if (success) {
+        // Reset form
+        setTransferRequest({
+          product_id: '',
+          quantity: 0,
+          sourceWarehouseId: '',
+          destinationWarehouseId: '',
+          notes: ''
+        });
+        
+        await loadProducts();
+        
+        toast({
+          title: "Transferencia exitosa",
+          description: "El producto ha sido transferido correctamente."
+        });
+      }
+    } catch (error) {
+      console.error("Error al transferir producto:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo transferir el producto",
+        variant: "destructive"
+      });
     }
   };
-  
-  const handleTransferChange = (field: keyof TransferRequest, value: any) => {
-    setTransfer(prev => ({
-      ...prev,
-      [field]: field === 'quantity' ? parseInt(value) || 0 : value
-    }));
+
+  const getWarehouseStock = (product: Product, warehouseId: string) => {
+    if (warehouseId === 'main') return product.stock;
+    if (warehouseId === '1') return product.stock_1 ?? 0;
+    if (warehouseId === '2') return product.stock_2 ?? 0;
+    if (warehouseId === '3') return product.stock_3 ?? 0;
+    return 0;
   };
-  
-  const handleTransferProduct = () => {
-    try {
-      if (!transfer.productId) {
-        toast({
-          title: "Error",
-          description: "Debe seleccionar un producto",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (transfer.quantity <= 0) {
-        toast({
-          title: "Error",
-          description: "La cantidad debe ser mayor que 0",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (transfer.sourceWarehouse === transfer.destinationWarehouse) {
-        toast({
-          title: "Error",
-          description: "Las bodegas de origen y destino deben ser diferentes",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      const updatedProduct = inventoryService.transferProduct(transfer);
-      
-      setInventoryData(prev => prev.map(item => 
-        item.id === updatedProduct.id ? updatedProduct : item
-      ));
-      
-      setIsTransferDialogOpen(false);
-      setTransfer({
-        productId: 0,
-        sourceWarehouse: 'mainWarehouse',
-        destinationWarehouse: 'warehouse1',
-        quantity: 1
-      });
-    } catch (err) {
-      console.error(err);
+
+  const renderStockStatus = (stock: number, minStock: number) => {
+    if (stock <= 0) {
+      return <span className="text-red-500 font-bold">Sin Stock</span>;
+    } else if (stock < minStock) {
+      return <span className="text-yellow-500 font-bold">Bajo Stock</span>;
+    } else {
+      return <span className="text-green-500">OK</span>;
     }
   };
-  
-  const warehouseNames = {
-    mainWarehouse: 'Bodega Principal',
-    warehouse1: 'Bodega 1',
-    warehouse2: 'Bodega 2',
-    warehouse3: 'Bodega 3'
-  };
-  
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Inventario</h1>
-        <p className="text-muted-foreground">
-          Gestión y monitoreo de inventario entre bodegas.
-        </p>
-      </div>
-      
-      <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
-        <Card className="md:w-1/3">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Bodega Principal</CardTitle>
-            <CardDescription>Inventario total: {inventoryData.reduce((acc, item) => acc + item.mainWarehouse, 0)} unidades</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {categories.slice(0, 3).map(category => (
-                <div key={category} className="flex justify-between items-center">
-                  <span className="text-sm">{category}</span>
-                  <span className="font-medium">{inventoryData.filter(i => i.category === category).reduce((acc, item) => acc + item.mainWarehouse, 0)} u.</span>
-                </div>
-              ))}
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Otros</span>
-                <span className="font-medium">{inventoryData.filter(i => !categories.slice(0, 3).includes(i.category)).reduce((acc, item) => acc + item.mainWarehouse, 0)} u.</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="md:w-1/3">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Sucursales</CardTitle>
-            <CardDescription>Inventario total en sucursales: {inventoryData.reduce((acc, item) => acc + item.warehouse1 + item.warehouse2 + item.warehouse3, 0)} unidades</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Bodega 1</span>
-                <span className="font-medium">{inventoryData.reduce((acc, item) => acc + item.warehouse1, 0)} u.</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Bodega 2</span>
-                <span className="font-medium">{inventoryData.reduce((acc, item) => acc + item.warehouse2, 0)} u.</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Bodega 3</span>
-                <span className="font-medium">{inventoryData.reduce((acc, item) => acc + item.warehouse3, 0)} u.</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="md:w-1/3 bg-amber-50/50 border-amber-200">
-          <CardHeader className="pb-2">
-            <div className="flex items-center">
-              <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
-              <CardTitle className="text-lg">Stock Bajo</CardTitle>
-            </div>
-            <CardDescription>Productos con nivel bajo: {lowStockItems.length}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {lowStockItems.slice(0, 3).map((item) => (
-                <div key={item.id} className="flex justify-between items-center">
-                  <span className="text-sm truncate max-w-[180px]">{item.name}</span>
+    <div className="container mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Control de Inventario</h1>
+        <div className="flex space-x-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" /> Nuevo Producto</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Nuevo Producto</DialogTitle>
+                <DialogDescription>
+                  Complete los detalles del nuevo producto
+                </DialogDescription>
+              </DialogHeader>
+              {/* Formulario para nuevo producto */}
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                createProduct(newProduct);
+              }}>
+                <div className="grid gap-4 py-4">
                   <div>
-                    {item.warehouse1 < item.threshold && (
-                      <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200 mr-1">B1</Badge>
-                    )}
-                    {item.warehouse2 < item.threshold && (
-                      <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200 mr-1">B2</Badge>
-                    )}
-                    {item.warehouse3 < item.threshold && (
-                      <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">B3</Badge>
-                    )}
+                    <Label htmlFor="name">Nombre</Label>
+                    <Input
+                      id="name"
+                      value={newProduct.name}
+                      onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="description">Descripción</Label>
+                    <Input
+                      id="description"
+                      value={newProduct.description}
+                      onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="category">Categoría</Label>
+                      <Input
+                        id="category"
+                        value={newProduct.category}
+                        onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="brand">Marca</Label>
+                      <Input
+                        id="brand"
+                        value={newProduct.brand}
+                        onChange={(e) => setNewProduct({...newProduct, brand: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="cost">Costo</Label>
+                      <Input
+                        id="cost"
+                        type="number"
+                        value={newProduct.cost}
+                        onChange={(e) => setNewProduct({...newProduct, cost: parseFloat(e.target.value)})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="price">Precio</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        value={newProduct.price}
+                        onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="sku">SKU</Label>
+                      <Input
+                        id="sku"
+                        value={newProduct.sku}
+                        onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="unit">Unidad</Label>
+                      <Input
+                        id="unit"
+                        value={newProduct.unit}
+                        onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="box_qty">Cantidad por caja</Label>
+                      <Input
+                        id="box_qty"
+                        type="number"
+                        value={newProduct.box_qty}
+                        onChange={(e) => setNewProduct({...newProduct, box_qty: parseInt(e.target.value)})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="min_stock">Stock mínimo</Label>
+                      <Input
+                        id="min_stock"
+                        type="number"
+                        value={newProduct.min_stock}
+                        onChange={(e) => setNewProduct({...newProduct, min_stock: parseInt(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="stock">Stock inicial</Label>
+                    <Input
+                      id="stock"
+                      type="number"
+                      value={newProduct.stock}
+                      onChange={(e) => setNewProduct({...newProduct, stock: parseInt(e.target.value)})}
+                    />
                   </div>
                 </div>
-              ))}
-              {lowStockItems.length > 3 && (
-                <Button variant="link" className="p-0 h-auto text-amber-700">
-                  Ver {lowStockItems.length - 3} productos más
-                </Button>
-              )}
+                <Button type="submit">Guardar Producto</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline"><Truck className="mr-2 h-4 w-4" /> Transferencia</Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Transferir Inventario</SheetTitle>
+                <SheetDescription>
+                  Mueva productos entre almacenes
+                </SheetDescription>
+              </SheetHeader>
+              <div className="py-4">
+                <form onSubmit={handleTransferSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="product">Producto</Label>
+                    <Select 
+                      value={transferRequest.product_id} 
+                      onValueChange={(value) => setTransferRequest({...transferRequest, product_id: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar producto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="sourceWarehouse">Origen</Label>
+                    <Select 
+                      value={transferRequest.sourceWarehouseId} 
+                      onValueChange={(value) => setTransferRequest({...transferRequest, sourceWarehouseId: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar almacén origen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {warehouses.map((warehouse) => (
+                          <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="destinationWarehouse">Destino</Label>
+                    <Select 
+                      value={transferRequest.destinationWarehouseId} 
+                      onValueChange={(value) => setTransferRequest({...transferRequest, destinationWarehouseId: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar almacén destino" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {warehouses.map((warehouse) => (
+                          <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="quantity">Cantidad</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      value={transferRequest.quantity || ''}
+                      onChange={(e) => setTransferRequest({...transferRequest, quantity: parseInt(e.target.value || '0')})}
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="notes">Notas</Label>
+                    <Input
+                      id="notes"
+                      value={transferRequest.notes || ''}
+                      onChange={(e) => setTransferRequest({...transferRequest, notes: e.target.value})}
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="w-full">Transferir</Button>
+                </form>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+
+      {lowStockProducts.length > 0 && (
+        <Card className="mb-6 border-yellow-500">
+          <CardHeader className="bg-yellow-50">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
+              <CardTitle className="text-yellow-800">Productos con bajo stock</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Bodega Principal</TableHead>
+                    <TableHead className="text-center">Almacenes</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lowStockProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>{product.sku}</TableCell>
+                      <TableCell>
+                        {product.stock} / {product.min_stock}
+                        {renderStockStatus(product.stock, product.min_stock)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-around">
+                          <div>
+                            <span className="text-xs">A1:</span> {product.stock_1 ?? 0}
+                          </div>
+                          <div>
+                            <span className="text-xs">A2:</span> {product.stock_2 ?? 0}
+                          </div>
+                          <div>
+                            <span className="text-xs">A3:</span> {product.stock_3 ?? 0}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm">
+                          <PackageCheck className="mr-1 h-4 w-4" /> Reabastecer
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Gestión de Inventario</CardTitle>
-              <CardDescription>
-                Consulta y administra el inventario en todas las bodegas
-              </CardDescription>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Producto
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Agregar Nuevo Producto</DialogTitle>
-                    <DialogDescription>
-                      Ingrese los detalles del nuevo producto.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="sku">SKU</Label>
-                        <Input 
-                          id="sku" 
-                          value={newProduct.sku} 
-                          onChange={(e) => handleNewProductChange('sku', e.target.value)}
-                          placeholder="Ej: WP-001"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="category">Categoría</Label>
-                        <Input 
-                          id="category" 
-                          value={newProduct.category} 
-                          onChange={(e) => handleNewProductChange('category', e.target.value)}
-                          placeholder="Ej: Whisky"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Nombre del Producto</Label>
-                      <Input 
-                        id="name" 
-                        value={newProduct.name} 
-                        onChange={(e) => handleNewProductChange('name', e.target.value)}
-                        placeholder="Ej: Whisky Premium"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="price">Precio Unitario</Label>
-                        <Input 
-                          id="price" 
-                          type="number" 
-                          value={newProduct.price.toString()} 
-                          onChange={(e) => handleNewProductChange('price', e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="boxQty">Unidades por Caja</Label>
-                        <Input 
-                          id="boxQty" 
-                          type="number" 
-                          value={newProduct.boxQty.toString()} 
-                          onChange={(e) => handleNewProductChange('boxQty', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="threshold">Umbral de Stock Mínimo</Label>
-                      <Input 
-                        id="threshold" 
-                        type="number" 
-                        value={newProduct.threshold.toString()} 
-                        onChange={(e) => handleNewProductChange('threshold', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label className="mb-2 block">Cantidades Iniciales</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="mainWarehouse" className="text-xs">Bodega Principal</Label>
-                          <Input 
-                            id="mainWarehouse" 
-                            type="number" 
-                            value={newProduct.mainWarehouse.toString()} 
-                            onChange={(e) => handleNewProductChange('mainWarehouse', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="warehouse1" className="text-xs">Bodega 1</Label>
-                          <Input 
-                            id="warehouse1" 
-                            type="number" 
-                            value={newProduct.warehouse1.toString()} 
-                            onChange={(e) => handleNewProductChange('warehouse1', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="warehouse2" className="text-xs">Bodega 2</Label>
-                          <Input 
-                            id="warehouse2" 
-                            type="number" 
-                            value={newProduct.warehouse2.toString()} 
-                            onChange={(e) => handleNewProductChange('warehouse2', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="warehouse3" className="text-xs">Bodega 3</Label>
-                          <Input 
-                            id="warehouse3" 
-                            type="number" 
-                            value={newProduct.warehouse3.toString()} 
-                            onChange={(e) => handleNewProductChange('warehouse3', e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAddProductDialogOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleCreateProduct}>Guardar Producto</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all">
-            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-4">
-              <TabsList>
-                <TabsTrigger value="all">Todos</TabsTrigger>
-                <TabsTrigger value="low">Stock Bajo</TabsTrigger>
-                <TabsTrigger value="transfer">Transferencias</TabsTrigger>
-                <TabsTrigger value="history">Historial</TabsTrigger>
-              </TabsList>
-              
-              <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar producto..."
-                    className="pl-8 md:w-[200px] lg:w-[300px]"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                
-                <Select value={currentCategory} onValueChange={setCurrentCategory}>
-                  <SelectTrigger className="md:w-[180px]">
-                    <div className="flex items-center">
-                      <Filter className="mr-2 h-4 w-4" />
-                      <SelectValue placeholder="Categoría" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las categorías</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="flex-shrink-0">
-                      <ArrowRightLeft className="mr-2 h-4 w-4" />
-                      Transferir Stock
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Transferir Stock Entre Bodegas</DialogTitle>
-                      <DialogDescription>
-                        Seleccione el producto y las bodegas para realizar la transferencia.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="product">Producto</Label>
-                        <Select 
-                          value={transfer.productId.toString()} 
-                          onValueChange={(val) => handleTransferChange('productId', parseInt(val))}
-                        >
-                          <SelectTrigger id="product">
-                            <SelectValue placeholder="Seleccionar producto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {inventoryData.map((product) => (
-                              <SelectItem key={product.id} value={product.id.toString()}>
-                                {product.name} ({product.sku})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="source">Bodega de Origen</Label>
-                          <Select 
-                            value={transfer.sourceWarehouse} 
-                            onValueChange={(val) => handleTransferChange('sourceWarehouse', val as TransferRequest['sourceWarehouse'])}
-                          >
-                            <SelectTrigger id="source">
-                              <SelectValue placeholder="Origen" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="mainWarehouse">Bodega Principal</SelectItem>
-                              <SelectItem value="warehouse1">Bodega 1</SelectItem>
-                              <SelectItem value="warehouse2">Bodega 2</SelectItem>
-                              <SelectItem value="warehouse3">Bodega 3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="destination">Bodega de Destino</Label>
-                          <Select 
-                            value={transfer.destinationWarehouse} 
-                            onValueChange={(val) => handleTransferChange('destinationWarehouse', val as TransferRequest['destinationWarehouse'])}
-                          >
-                            <SelectTrigger id="destination">
-                              <SelectValue placeholder="Destino" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="mainWarehouse">Bodega Principal</SelectItem>
-                              <SelectItem value="warehouse1">Bodega 1</SelectItem>
-                              <SelectItem value="warehouse2">Bodega 2</SelectItem>
-                              <SelectItem value="warehouse3">Bodega 3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="quantity">Cantidad a Transferir</Label>
-                        <Input 
-                          id="quantity" 
-                          type="number" 
-                          min="1"
-                          value={transfer.quantity.toString()} 
-                          onChange={(e) => handleTransferChange('quantity', e.target.value)}
-                        />
-                      </div>
-                      
-                      {transfer.productId > 0 && (
-                        <div className="rounded-md bg-muted p-3 text-sm">
-                          <div className="font-medium">Disponibilidad actual:</div>
-                          {Object.entries(warehouseNames).map(([key, name]) => {
-                            const product = inventoryData.find(p => p.id === transfer.productId);
-                            if (product) {
-                              return (
-                                <div key={key} className="flex justify-between mt-1">
-                                  <span>{name}:</span>
-                                  <span className="font-medium">
-                                    {product[key as keyof typeof product]} unidades
-                                  </span>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsTransferDialogOpen(false)}>Cancelar</Button>
-                      <Button onClick={handleTransferProduct}>Realizar Transferencia</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-            
-            <TabsContent value="all" className="m-0">
-              <div className="rounded-md border">
+      )}
+
+      <Tabs defaultValue="inventory" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="inventory">Inventario</TabsTrigger>
+          <TabsTrigger value="movements">Movimientos</TabsTrigger>
+        </TabsList>
+        <TabsContent value="inventory">
+          {loading ? (
+            <div className="flex justify-center p-4">Cargando inventario...</div>
+          ) : (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">
-                        <Button variant="ghost" className="p-0 h-auto font-medium" onClick={() => handleSort('sku')}>
-                          SKU
-                          {sortField === 'sku' && (
-                            <ArrowUpDown className={`ml-1 h-4 w-4 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button variant="ghost" className="p-0 h-auto font-medium" onClick={() => handleSort('name')}>
-                          Producto
-                          {sortField === 'name' && (
-                            <ArrowUpDown className={`ml-1 h-4 w-4 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button variant="ghost" className="p-0 h-auto font-medium" onClick={() => handleSort('category')}>
-                          Categoría
-                          {sortField === 'category' && (
-                            <ArrowUpDown className={`ml-1 h-4 w-4 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead className="text-right">
-                        <Button variant="ghost" className="p-0 h-auto font-medium" onClick={() => handleSort('mainWarehouse')}>
-                          Bodega Principal
-                          {sortField === 'mainWarehouse' && (
-                            <ArrowUpDown className={`ml-1 h-4 w-4 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead className="text-right">Bodega 1</TableHead>
-                      <TableHead className="text-right">Bodega 2</TableHead>
-                      <TableHead className="text-right">Bodega 3</TableHead>
-                      <TableHead className="text-right">Precio</TableHead>
-                      <TableHead className="text-center">Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInventory.length > 0 ? (
-                      filteredInventory.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.sku}</TableCell>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell>{item.category}</TableCell>
-                          <TableCell className="text-right">{item.mainWarehouse}</TableCell>
-                          <TableCell className={`text-right ${item.warehouse1 < item.threshold ? 'text-red-600 font-medium' : ''}`}>
-                            {item.warehouse1}
-                          </TableCell>
-                          <TableCell className={`text-right ${item.warehouse2 < item.threshold ? 'text-red-600 font-medium' : ''}`}>
-                            {item.warehouse2}
-                          </TableCell>
-                          <TableCell className={`text-right ${item.warehouse3 < item.threshold ? 'text-red-600 font-medium' : ''}`}>
-                            {item.warehouse3}
-                          </TableCell>
-                          <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                          <TableCell className="text-center">
-                            {(item.warehouse1 < item.threshold || 
-                              item.warehouse2 < item.threshold || 
-                              item.warehouse3 < item.threshold) ? (
-                              <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
-                                Stock Bajo
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                                Normal
-                              </Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
-                          No se encontraron productos que coincidan con la búsqueda.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="low" className="m-0">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[100px]">SKU</TableHead>
-                      <TableHead>Producto</TableHead>
+                      <TableHead className="w-[250px]">Producto</TableHead>
+                      <TableHead>SKU</TableHead>
                       <TableHead>Categoría</TableHead>
-                      <TableHead className="text-right">Mínimo</TableHead>
-                      <TableHead className="text-right">Bodega 1</TableHead>
-                      <TableHead className="text-right">Bodega 2</TableHead>
-                      <TableHead className="text-right">Bodega 3</TableHead>
-                      <TableHead className="text-right">Disponible en Central</TableHead>
-                      <TableHead className="text-center">Acción</TableHead>
+                      <TableHead className="text-center">Bodega Principal</TableHead>
+                      <TableHead className="text-center">Almacén 1</TableHead>
+                      <TableHead className="text-center">Almacén 2</TableHead>
+                      <TableHead className="text-center">Almacén 3</TableHead>
+                      <TableHead className="text-right">Precio</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lowStockItems.length > 0 ? (
-                      lowStockItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.sku}</TableCell>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell>{item.category}</TableCell>
-                          <TableCell className="text-right">{item.threshold}</TableCell>
-                          <TableCell className={`text-right ${item.warehouse1 < item.threshold ? 'text-red-600 font-medium' : ''}`}>
-                            {item.warehouse1}
-                          </TableCell>
-                          <TableCell className={`text-right ${item.warehouse2 < item.threshold ? 'text-red-600 font-medium' : ''}`}>
-                            {item.warehouse2}
-                          </TableCell>
-                          <TableCell className={`text-right ${item.warehouse3 < item.threshold ? 'text-red-600 font-medium' : ''}`}>
-                            {item.warehouse3}
-                          </TableCell>
-                          <TableCell className="text-right">{item.mainWarehouse}</TableCell>
-                          <TableCell className="text-center">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                let sourceWarehouse: TransferRequest['sourceWarehouse'] = 'mainWarehouse';
-                                let destinationWarehouse: TransferRequest['destinationWarehouse'] = 'warehouse1';
-                                
-                                if (item.warehouse1 < item.threshold) {
-                                  destinationWarehouse = 'warehouse1';
-                                } else if (item.warehouse2 < item.threshold) {
-                                  destinationWarehouse = 'warehouse2';
-                                } else if (item.warehouse3 < item.threshold) {
-                                  destinationWarehouse = 'warehouse3';
-                                }
-                                
-                                setTransfer({
-                                  productId: item.id,
-                                  sourceWarehouse,
-                                  destinationWarehouse,
-                                  quantity: item.threshold - Math.min(item.warehouse1, item.warehouse2, item.warehouse3)
-                                });
-                                setIsTransferDialogOpen(true);
-                              }}
-                            >
-                              Reabastecer
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
-                          No hay productos con nivel de stock bajo.
-                        </TableCell>
+                    {products.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{product.sku}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell className="text-center">{product.stock}</TableCell>
+                        <TableCell className="text-center">{product.stock_1 ?? 0}</TableCell>
+                        <TableCell className="text-center">{product.stock_2 ?? 0}</TableCell>
+                        <TableCell className="text-center">{product.stock_3 ?? 0}</TableCell>
+                        <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
                       </TableRow>
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
               </div>
-            </TabsContent>
-            
-            <TabsContent value="transfer" className="m-0">
-              <div className="p-6 border rounded-md bg-muted/30">
-                <div className="text-center mb-6">
-                  <h3 className="text-lg font-medium mb-2">Transferencia de Inventario</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Esta sección te permite transferir productos entre bodegas para optimizar la distribución.
-                  </p>
-                  <Button onClick={() => setIsTransferDialogOpen(true)}>
-                    <ArrowRightLeft className="mr-2 h-4 w-4" />
-                    Nueva Transferencia
-                  </Button>
-                </div>
-                
-                <div className="mt-8">
-                  <h4 className="font-medium mb-4">Historial de Transferencias Recientes</h4>
-                  
-                  <div className="rounded-md border bg-card">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Producto</TableHead>
-                          <TableHead>Origen</TableHead>
-                          <TableHead>Destino</TableHead>
-                          <TableHead className="text-right">Cantidad</TableHead>
-                          <TableHead>Fecha</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell>Whisky Premium</TableCell>
-                          <TableCell>Bodega Principal</TableCell>
-                          <TableCell>Bodega 2</TableCell>
-                          <TableCell className="text-right">10</TableCell>
-                          <TableCell>{new Date().toLocaleDateString()}</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Aguardiente Antioqueño</TableCell>
-                          <TableCell>Bodega Principal</TableCell>
-                          <TableCell>Bodega 3</TableCell>
-                          <TableCell className="text-right">15</TableCell>
-                          <TableCell>{new Date().toLocaleDateString()}</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="history" className="m-0">
-              <div className="border rounded-md p-6 bg-muted/30">
-                <MovementHistory products={inventoryData} />
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="movements">
+          <MovementHistory />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

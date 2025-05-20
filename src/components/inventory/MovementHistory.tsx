@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
@@ -47,7 +48,6 @@ const MovementHistory: React.FC<MovementHistoryProps> = ({ warehouseId }) => {
     }
   }, [warehouseId]);
 
-  // Dentro del componente, asegúrate de usar la función addMovement correctamente
   const handleAddMovement = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -183,11 +183,11 @@ const MovementHistory: React.FC<MovementHistoryProps> = ({ warehouseId }) => {
           <TableBody>
             {movements.map((movement) => (
               <TableRow key={movement.id}>
-                <TableCell className="font-medium">{movement.type}</TableCell>
+                <TableCell className="font-medium">{movement.type || movement.movement_type}</TableCell>
                 <TableCell>{movement.product?.name}</TableCell>
                 <TableCell>{movement.warehouse?.name}</TableCell>
                 <TableCell>{movement.quantity}</TableCell>
-                <TableCell>{movement.responsible?.name}</TableCell>
+                <TableCell>{movement.responsible?.name || 'Sistema'}</TableCell>
                 <TableCell>{movement.notes}</TableCell>
               </TableRow>
             ))}

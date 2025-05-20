@@ -18,7 +18,6 @@ import NotFound from "./pages/NotFound";
 import AppLayout from "./components/Layout/AppLayout";
 import Auth from "./pages/Auth";
 import React from "react";
-import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 

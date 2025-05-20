@@ -33,7 +33,8 @@ const Users: React.FC = () => {
       try {
         setLoading(true);
         const usersData = await getAllUsers();
-        setUsers(usersData);
+        // Ensure we only set state once the Promise is resolved
+        setUsers(usersData || []);
       } catch (error) {
         console.error("Error fetching users:", error);
         toast({

@@ -19,6 +19,12 @@ export interface Product {
   created_at: string;
   updated_at: string;
   image_url?: string;
+  // Additional properties needed by the application
+  threshold?: number;
+  mainWarehouse?: number;
+  warehouse1?: number;
+  warehouse2?: number;
+  warehouse3?: number;
 }
 
 export interface TransferRequest {
@@ -27,6 +33,10 @@ export interface TransferRequest {
   sourceWarehouseId: string;
   destinationWarehouseId: string;
   notes?: string;
+  // Additional properties used in the app
+  productId?: string;
+  sourceWarehouse?: string;
+  destinationWarehouse?: string;
 }
 
 export interface InventoryMovement {
@@ -41,4 +51,12 @@ export interface InventoryMovement {
   product?: {
     name: string;
   };
+}
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  location: string;
+  capacity: number;
+  status: string;
 }

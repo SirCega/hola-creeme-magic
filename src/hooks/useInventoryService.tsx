@@ -10,7 +10,7 @@ import {
   transferInventory, 
   getInventoryMovements 
 } from '@/services/inventory.service';
-import { Product, TransferRequest } from '@/types/inventory-types';
+import { Product, TransferRequest, InventoryMovement, Warehouse } from '@/types/inventory-types';
 import { useToast } from './use-toast';
 
 export function useInventoryService() {
@@ -18,6 +18,12 @@ export function useInventoryService() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [movements, setMovements] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([
+    { id: 'main', name: 'Principal', location: 'Sede Central', capacity: 1000, status: 'active' },
+    { id: '1', name: 'Almacén 1', location: 'Sede Norte', capacity: 500, status: 'active' },
+    { id: '2', name: 'Almacén 2', location: 'Sede Sur', capacity: 500, status: 'active' },
+    { id: '3', name: 'Almacén 3', location: 'Sede Este', capacity: 300, status: 'active' },
+  ]);
   const { toast } = useToast();
 
   const loadProducts = async () => {
@@ -221,8 +227,56 @@ export function useInventoryService() {
     }
   };
 
+  // Additional methods needed by MovementHistory.tsx
+  const addMovement = async (movement: any) => {
+    try {
+      setLoading(true);
+      // This is a placeholder - in a real app, this would call a backend service
+      console.log("Adding movement:", movement);
+      
+      // Handle different movement types
+      if (movement.type === 'entrada') {
+        await handleAddInventory(movement.product_id, movement.warehouse_id, movement.quantity);
+      } else if (movement.type === 'salida') {
+        await handleAddInventory(movement.product_id, movement.warehouse_id, -movement.quantity);
+      } else if (movement.type === 'transferencia' && movement.destination_warehouse_id) {
+        await handleTransferInventory(
+          movement.product_id,
+          movement.warehouse_id,
+          movement.destination_warehouse_id,
+          movement.quantity
+        );
+      }
+      
+      toast({
+        title: "Éxito",
+        description: "Movimiento registrado correctamente",
+      });
+      
+      await loadMovements();
+      return true;
+    } catch (err) {
+      setError('Error registrando movimiento');
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "No se pudo registrar el movimiento",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Alias functions for compatibility
+  const getInventory = loadProducts;
+  const transferProduct = handleTransferInventory;
+  const addProduct = handleCreateProduct;
+
   return {
     products,
+    warehouses,
     loading,
     error,
     movements,
@@ -233,6 +287,10 @@ export function useInventoryService() {
     deleteProduct: handleDeleteProduct,
     addInventory: handleAddInventory,
     updateInventory: handleUpdateInventory,
-    transferInventory: handleTransferInventory
+    transferInventory: handleTransferInventory,
+    addMovement,
+    getInventory,
+    transferProduct,
+    addProduct
   };
 }
