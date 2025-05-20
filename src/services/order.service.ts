@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Order, Invoice, Delivery, OrderItem } from '@/types/order-types';
 import { User } from '@/types/auth-types';
@@ -232,6 +231,6 @@ export const getCustomers = async (): Promise<Customer[]> => {
   }
 };
 
-// Exportamos los tipos para que sean accesibles
+// Export types directly
 export type { Customer, Order, Invoice, Delivery, OrderItem };
 export { useOrderService } from '@/hooks/useOrderService';

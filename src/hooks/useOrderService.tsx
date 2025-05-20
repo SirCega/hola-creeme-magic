@@ -6,6 +6,7 @@ import {
   getAllDeliveries, 
   updateOrderStatus, 
   getCustomers,
+  createOrder,
   Customer,
   Order,
   Invoice,
@@ -36,9 +37,11 @@ export function useOrderService() {
       const data = await getAllOrders();
       setOrders(data);
       setError(null);
+      return data;
     } catch (err) {
       setError('Error loading orders');
       console.error(err);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -50,9 +53,11 @@ export function useOrderService() {
       const data = await getAllInvoices();
       setInvoices(data);
       setError(null);
+      return data;
     } catch (err) {
       setError('Error loading invoices');
       console.error(err);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -64,9 +69,11 @@ export function useOrderService() {
       const data = await getAllDeliveries();
       setDeliveries(data);
       setError(null);
+      return data;
     } catch (err) {
       setError('Error loading deliveries');
       console.error(err);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -78,9 +85,11 @@ export function useOrderService() {
       const data = await getCustomers();
       setCustomers(data);
       setError(null);
+      return data;
     } catch (err) {
       setError('Error loading customers');
       console.error(err);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -114,6 +123,41 @@ export function useOrderService() {
     }
   };
 
+  const handleCreateOrder = async (
+    customerId: string,
+    items: OrderItem[],
+    shippingAddress: string,
+    totalAmount: number
+  ) => {
+    try {
+      setLoading(true);
+      const newOrder = await createOrder(customerId, items, shippingAddress, totalAmount);
+      await loadOrders();
+      
+      if (newOrder) {
+        toast({
+          title: "Orden creada",
+          description: `Orden creada exitosamente`,
+        });
+      }
+      
+      return newOrder;
+    } catch (err) {
+      setError('Error creating order');
+      console.error(err);
+      
+      toast({
+        title: "Error",
+        description: "No se pudo crear la orden",
+        variant: "destructive",
+      });
+      
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     orders,
     invoices,
@@ -125,8 +169,9 @@ export function useOrderService() {
     loadInvoices,
     loadDeliveries,
     loadCustomers,
-    updateOrderStatus: handleUpdateOrderStatus
+    updateOrderStatus: handleUpdateOrderStatus,
+    createOrder: handleCreateOrder
   };
 }
 
-export type { Order, Invoice, Delivery, OrderItem };
+export type { Order, Invoice, Delivery, OrderItem, Customer };

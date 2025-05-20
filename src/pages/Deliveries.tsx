@@ -44,7 +44,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Order, getOrders, useOrderService } from '@/services/order.service';
+import { useOrderService, Order } from '@/services/order.service';
 
 // Datos de domiciliarios
 const deliveryPeople = [
@@ -69,8 +69,11 @@ const Deliveries: React.FC = () => {
   
   // Cargar pedidos
   useEffect(() => {
-    const loadOrders = getOrders();
-    setOrders(loadOrders);
+    const loadData = async () => {
+      const data = await orderService.loadOrders();
+      setOrders(orderService.orders);
+    };
+    loadData();
   }, []);
   
   // Pedidos que son entregas (preparados o enviados)
@@ -106,18 +109,24 @@ const Deliveries: React.FC = () => {
         break;
     }
     
-    return filteredOrders.filter(order => 
-      (searchQuery === '' || 
-        order.customer.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (statusFilter === 'all' || order.status === statusFilter)
-    );
+    return filteredOrders.filter(order => {
+      const customerName = typeof order.customer === 'string' 
+        ? order.customer.toLowerCase() 
+        : order.customer?.email?.toLowerCase() || '';
+      
+      const orderNumber = order.orderNumber?.toLowerCase() || '';
+      
+      return (searchQuery === '' || 
+        customerName.includes(searchQuery.toLowerCase()) || 
+        orderNumber.includes(searchQuery.toLowerCase())) &&
+        (statusFilter === 'all' || order.status === statusFilter);
+    });
   };
   
   const filteredDeliveries = getFilteredDeliveries();
   
   // Asignar domiciliario
-  const assignDeliveryPerson = () => {
+  const assignDeliveryPerson = async () => {
     if (!currentOrder || !selectedDeliveryPerson) {
       toast({
         title: "Error",
@@ -136,7 +145,7 @@ const Deliveries: React.FC = () => {
       }
       
       // Actualizar el estado del pedido a enviado
-      const updatedOrder = orderService.updateOrderStatus(
+      await orderService.updateOrderStatus(
         currentOrder.id,
         'enviado',
         deliveryPerson.id,
@@ -144,7 +153,8 @@ const Deliveries: React.FC = () => {
       );
       
       // Actualizar la lista de pedidos
-      setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      await orderService.loadOrders();
+      setOrders(orderService.orders);
       
       toast({
         title: "Domiciliario asignado",
@@ -170,18 +180,19 @@ const Deliveries: React.FC = () => {
   };
   
   // Marcar pedido como entregado
-  const markAsDelivered = () => {
+  const markAsDelivered = async () => {
     if (!currentOrder) return;
     
     try {
       // Actualizar el estado del pedido a entregado
-      const updatedOrder = orderService.updateOrderStatus(
+      await orderService.updateOrderStatus(
         currentOrder.id,
         'entregado'
       );
       
       // Actualizar la lista de pedidos
-      setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      await orderService.loadOrders();
+      setOrders(orderService.orders);
       
       toast({
         title: "Entrega completada",
@@ -196,7 +207,7 @@ const Deliveries: React.FC = () => {
   };
   
   // Mostrar badge según estado
-  const getStatusBadge = (status: Order['status']) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pendiente':
         return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">Pendiente</Badge>;
