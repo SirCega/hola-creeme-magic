@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,16 +23,30 @@ const Auth: React.FC = () => {
   const [registerAddress, setRegisterAddress] = useState('');
   const [registerError, setRegisterError] = useState('');
   
-  const { login, registerClient, isLoading } = useAuth();
+  const { login, registerClient, isLoading, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleLoginWithEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
+    
+    if (!email || !password) {
+      setLoginError('Por favor ingrese email y contraseña');
+      return;
+    }
+    
     try {
       console.log("Intentando iniciar sesión con:", email);
       await login(email, password);
+      // Navigation is handled by the useEffect hook when user state updates
     } catch (error: any) {
       console.error("Login error in form handler:", error);
       setLoginError(error.message || 'Error al iniciar sesión');
@@ -42,6 +56,12 @@ const Auth: React.FC = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegisterError('');
+    
+    if (!registerEmail || !registerPassword || !registerName || !registerAddress) {
+      setRegisterError('Por favor complete todos los campos');
+      return;
+    }
+    
     try {
       await registerClient({
         email: registerEmail,
@@ -49,6 +69,7 @@ const Auth: React.FC = () => {
         name: registerName,
         address: registerAddress
       });
+      // Login is handled within registerClient if successful
     } catch (error: any) {
       console.error("Registration error in form handler:", error);
       setRegisterError(error.message || 'Error al registrarse');
