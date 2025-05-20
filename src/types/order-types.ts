@@ -10,7 +10,7 @@ export interface Order {
   created_at?: string;
   updated_at?: string;
   items?: OrderItem[];
-  customer?: User;
+  customer?: User | string;
   
   // Additional properties needed by components
   orderNumber?: string;
@@ -48,7 +48,14 @@ export interface Invoice {
   
   // Additional properties needed by components
   customerName?: string;
+  customerAddress?: string;
   invoiceNumber?: string;
+  orderNumber?: string;
+  date?: string;
+  items?: OrderItem[];
+  subtotal?: number;
+  tax?: number;
+  total?: number;
 }
 
 export interface Delivery {
@@ -63,3 +70,6 @@ export interface Delivery {
   order?: Order;
   delivery_person?: User;
 }
+
+// Export the Customer type
+export type Customer = User;

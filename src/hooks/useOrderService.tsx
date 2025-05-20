@@ -9,10 +9,7 @@ import {
   createOrder
 } from '@/services/order.service';
 import { useToast } from './use-toast';
-import { Order, Invoice, Delivery, OrderItem } from '@/types/order-types';
-import { User } from '@/types/auth-types';
-
-export type Customer = User;
+import { Order, Invoice, Delivery, OrderItem, Customer } from '@/types/order-types';
 
 export function useOrderService() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -43,8 +40,6 @@ export function useOrderService() {
         address: order.shipping_address,
         total: order.total_amount,
         customerId: order.customer_id,
-        // Format customer name if available
-        customer: order.customer ? order.customer.name : `Client ${order.customer_id.substring(0, 6)}`
       }));
       
       setOrders(processedOrders);
@@ -63,9 +58,23 @@ export function useOrderService() {
     try {
       setLoading(true);
       const data = await getAllInvoices();
-      setInvoices(data);
+      
+      // Process invoices to add required properties
+      const processedInvoices = data.map(invoice => ({
+        ...invoice,
+        invoiceNumber: invoice.invoice_number,
+        customerName: invoice.customer?.name || `Cliente ${invoice.order?.customer_id.substring(0, 6)}`,
+        customerAddress: invoice.order?.shipping_address || '',
+        orderNumber: invoice.order ? `ORD-${invoice.order.id.substring(0, 8)}` : '',
+        date: invoice.issue_date,
+        total: invoice.total_amount,
+        subtotal: invoice.total_amount - invoice.tax_amount,
+        tax: invoice.tax_amount
+      }));
+      
+      setInvoices(processedInvoices);
       setError(null);
-      return data;
+      return processedInvoices;
     } catch (err) {
       setError('Error loading invoices');
       console.error(err);
@@ -170,6 +179,39 @@ export function useOrderService() {
     }
   };
 
+  // Add a payInvoice function for Invoices.tsx
+  const payInvoice = async (invoiceId: string) => {
+    try {
+      // This is just a mock implementation since we don't have a backend endpoint yet
+      // In a real application, you would call a service function to update the invoice status
+      const updatedInvoices = invoices.map(invoice => {
+        if (invoice.id === invoiceId) {
+          return { ...invoice, status: 'pagada' };
+        }
+        return invoice;
+      });
+      
+      setInvoices(updatedInvoices);
+      
+      toast({
+        title: "Factura pagada",
+        description: `La factura ha sido marcada como pagada`,
+      });
+      
+      return updatedInvoices.find(invoice => invoice.id === invoiceId);
+    } catch (err) {
+      console.error(err);
+      
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la factura",
+        variant: "destructive",
+      });
+      
+      return null;
+    }
+  };
+
   return {
     orders,
     invoices,
@@ -182,7 +224,8 @@ export function useOrderService() {
     loadDeliveries,
     loadCustomers,
     updateOrderStatus: handleUpdateOrderStatus,
-    createOrder: handleCreateOrder
+    createOrder: handleCreateOrder,
+    payInvoice
   };
 }
 

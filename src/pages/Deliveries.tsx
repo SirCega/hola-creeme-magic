@@ -357,7 +357,11 @@ const Deliveries: React.FC = () => {
                     filteredDeliveries.map((delivery) => (
                       <TableRow key={delivery.id}>
                         <TableCell className="font-medium">{delivery.orderNumber || delivery.id.substring(0, 8)}</TableCell>
-                        <TableCell>{typeof delivery.customer === 'string' ? delivery.customer : delivery.customer?.name}</TableCell>
+                        <TableCell>
+                          {typeof delivery.customer === 'string' 
+                            ? delivery.customer 
+                            : delivery.customer?.name || ''}
+                        </TableCell>
                         <TableCell>{new Date(delivery.date || delivery.created_at || '').toLocaleDateString()}</TableCell>
                         <TableCell className="max-w-[200px] truncate">{delivery.address || delivery.shipping_address}</TableCell>
                         <TableCell>

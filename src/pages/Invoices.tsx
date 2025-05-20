@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -39,7 +40,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { useOrderService, Invoice } from '@/services/order.service';
+import { useOrderService } from '@/hooks/useOrderService';
+import { Invoice } from '@/types/order-types';
 import { useAuth } from '@/hooks/useAuth';
 
 const Invoices: React.FC = () => {
@@ -56,13 +58,18 @@ const Invoices: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   
   useEffect(() => {
-    setInvoices(orderService.getInvoices());
-  }, []);
+    const loadData = async () => {
+      await orderService.loadInvoices();
+      setInvoices(orderService.invoices);
+    };
+    
+    loadData();
+  }, [orderService.invoices]);
 
   const filteredInvoices = invoices.filter(invoice => {
     const matchesSearch = searchQuery === '' || 
-      invoice.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase());
+      (invoice.customerName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+      (invoice.invoiceNumber?.toLowerCase() || '').includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     
@@ -78,16 +85,18 @@ const Invoices: React.FC = () => {
     setIsInvoiceDialogOpen(true);
   };
   
-  const payInvoice = (invoiceId: number) => {
+  const payInvoice = async (invoiceId: string) => {
     try {
-      const updatedInvoice = orderService.payInvoice(invoiceId);
-      setInvoices(invoices.map(i => i.id === updatedInvoice.id ? updatedInvoice : i));
+      const updatedInvoice = await orderService.payInvoice(invoiceId);
+      if (updatedInvoice) {
+        setInvoices(invoices.map(i => i.id === updatedInvoice.id ? updatedInvoice : i));
+      }
     } catch (error: any) {
       console.error(error);
     }
   };
 
-  const printInvoice = async (invoiceId: number) => {
+  const printInvoice = async (invoiceId: string) => {
     const invoice = invoices.find(i => i.id === invoiceId);
     if (!invoice) return;
     setInvoiceToPrint(invoice);
@@ -97,7 +106,7 @@ const Invoices: React.FC = () => {
     }, 150);
   };
 
-  const downloadInvoicePDF = async (invoiceId: number) => {
+  const downloadInvoicePDF = async (invoiceId: string) => {
     const invoice = invoices.find(i => i.id === invoiceId);
     if (!invoice) return;
     
@@ -141,7 +150,7 @@ const Invoices: React.FC = () => {
             <b>Dirección:</b> {invoice.customerAddress}
           </div>
           <div>
-            <b>Fecha:</b> {new Date(invoice.date).toLocaleDateString()} <br />
+            <b>Fecha:</b> {new Date(invoice.date || invoice.issue_date).toLocaleDateString()} <br />
             <b>Estado:</b> {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
           </div>
         </div>
@@ -155,7 +164,7 @@ const Invoices: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {invoice.items.map((item, i) => (
+            {(invoice.items || []).map((item, i) => (
               <tr key={i}>
                 <td style={{border:'1px solid #ddd', padding:'8px'}}>{item.productName}</td>
                 <td style={{border:'1px solid #ddd', padding:'8px', textAlign:'center'}}>{item.quantity}</td>
@@ -166,9 +175,9 @@ const Invoices: React.FC = () => {
           </tbody>
         </table>
         <div style={{marginTop:'18px', textAlign:'right'}}>
-          <b>Subtotal:</b> ${invoice.subtotal.toFixed(2)}<br />
-          <b>IVA (19%):</b> ${invoice.tax.toFixed(2)}<br />
-          <b style={{fontSize:'18px'}}>Total:</b> ${invoice.total.toFixed(2)}
+          <b>Subtotal:</b> ${(invoice.subtotal || 0).toFixed(2)}<br />
+          <b>IVA (19%):</b> ${(invoice.tax || 0).toFixed(2)}<br />
+          <b style={{fontSize:'18px'}}>Total:</b> ${(invoice.total || invoice.total_amount).toFixed(2)}
         </div>
       </div>
     ) : null
@@ -247,8 +256,8 @@ const Invoices: React.FC = () => {
                       <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                       <TableCell>{invoice.customerName}</TableCell>
                       <TableCell>{invoice.orderNumber}</TableCell>
-                      <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">${invoice.total.toFixed(2)}</TableCell>
+                      <TableCell>{new Date(invoice.date || invoice.issue_date).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">${(invoice.total || invoice.total_amount).toFixed(2)}</TableCell>
                       <TableCell className="text-center">
                         {getStatusBadge(invoice.status)}
                       </TableCell>
@@ -344,7 +353,7 @@ const Invoices: React.FC = () => {
                   </div>
                 </DialogTitle>
                 <DialogDescription>
-                  Fecha: {new Date(currentInvoice.date).toLocaleDateString()}
+                  Fecha: {new Date(currentInvoice.date || currentInvoice.issue_date).toLocaleDateString()}
                   &nbsp;|&nbsp;Estado: {currentInvoice.status.charAt(0).toUpperCase() + currentInvoice.status.slice(1)}
                 </DialogDescription>
               </DialogHeader>
@@ -362,7 +371,7 @@ const Invoices: React.FC = () => {
                     <div className="space-y-1 text-sm">
                       <p><span className="font-medium">Nº de Factura:</span> {currentInvoice.invoiceNumber}</p>
                       <p><span className="font-medium">Nº de Pedido:</span> {currentInvoice.orderNumber}</p>
-                      <p><span className="font-medium">Fecha Emisión:</span> {new Date(currentInvoice.date).toLocaleDateString()}</p>
+                      <p><span className="font-medium">Fecha Emisión:</span> {new Date(currentInvoice.date || currentInvoice.issue_date).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </div>
@@ -380,7 +389,7 @@ const Invoices: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {currentInvoice.items?.map((item, index) => (
+                        {(currentInvoice.items || []).map((item, index) => (
                           <TableRow key={index}>
                             <TableCell>{item.productName}</TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
@@ -396,15 +405,15 @@ const Invoices: React.FC = () => {
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Subtotal:</span>
-                    <span>${currentInvoice.subtotal.toFixed(2)}</span>
+                    <span>${(currentInvoice.subtotal || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="font-medium">IVA (19%):</span>
-                    <span>${currentInvoice.tax.toFixed(2)}</span>
+                    <span>${(currentInvoice.tax || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center mt-3 text-lg font-bold">
                     <span>Total:</span>
-                    <span>${currentInvoice.total.toFixed(2)}</span>
+                    <span>${(currentInvoice.total || currentInvoice.total_amount).toFixed(2)}</span>
                   </div>
                 </div>
               </div>

@@ -28,6 +28,7 @@ export interface TransferRequest {
   destinationWarehouseId: string;
   quantity: number;
   notes?: string;
+  product_id?: string;  // For compatibility with existing code
 }
 
 export interface InventoryMovement {
