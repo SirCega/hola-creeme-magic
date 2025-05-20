@@ -71,5 +71,5 @@ export interface Delivery {
   delivery_person?: User;
 }
 
-// Export the Customer type
+// Export the Customer type as an alias of User
 export type Customer = User;

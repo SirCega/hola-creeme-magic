@@ -1,437 +1,312 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, Filter, FileDown, Receipt, Printer, Download } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+import React, { useState, useEffect } from 'react';
+import { 
+  Card, CardContent, CardDescription, CardHeader, CardTitle 
+} from '@/components/ui/card';
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { 
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter 
+} from '@/components/ui/dialog';
+import { 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { 
+  Badge
+} from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { useOrderService } from '@/hooks/useOrderService';
-import { Invoice } from '@/types/order-types';
-import { useAuth } from '@/hooks/useAuth';
+import { useOrderService } from '@/services/order.service';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
-const Invoices: React.FC = () => {
+// Invoices page component
+const Invoices = () => {
+  const [invoices, setInvoices] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
-  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
-  const [invoiceToPrint, setInvoiceToPrint] = useState<Invoice | null>(null);
-  const invoiceRef = useRef<HTMLDivElement>(null);
+  const [statusFilter, setStatusFilter] = useState('todos');
+  const [isViewInvoiceDialogOpen, setIsViewInvoiceDialogOpen] = useState(false);
+  const [currentInvoice, setCurrentInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const orderService = useOrderService();
-  const { user } = useAuth();
-  
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  
-  useEffect(() => {
-    const loadData = async () => {
-      await orderService.loadInvoices();
-      setInvoices(orderService.invoices);
-    };
-    
-    loadData();
-  }, [orderService.invoices]);
+  const { loadInvoices, payInvoice } = useOrderService();
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = searchQuery === '' || 
-      (invoice.customerName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
-      (invoice.invoiceNumber?.toLowerCase() || '').includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-    
-    if (user?.role === 'cliente') {
-      return matchesSearch && matchesStatus && invoice.customerName === user.name;
-    } else {
-      return matchesSearch && matchesStatus;
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      setLoading(true);
+      try {
+        const data = await loadInvoices();
+        setInvoices(data);
+      } catch (error) {
+        console.error('Error loading invoices:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las facturas",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoices();
+  }, [loadInvoices, toast]);
+
+  const filteredInvoices = invoices.filter((invoice) => {
+    const searchMatch =
+      invoice.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      invoice.invoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      invoice.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    let statusMatch = true;
+    if (statusFilter !== 'todos') {
+      statusMatch = invoice.status?.toLowerCase() === statusFilter.toLowerCase();
     }
+
+    return searchMatch && statusMatch;
   });
 
-  const viewInvoice = (invoice: Invoice) => {
+  const viewInvoiceDetails = (invoice) => {
     setCurrentInvoice(invoice);
-    setIsInvoiceDialogOpen(true);
+    setIsViewInvoiceDialogOpen(true);
   };
-  
-  const payInvoice = async (invoiceId: string) => {
+
+  const handleCloseViewInvoiceDialog = () => {
+    setIsViewInvoiceDialogOpen(false);
+  };
+
+  const handlePayInvoice = async (invoiceId) => {
     try {
-      const updatedInvoice = await orderService.payInvoice(invoiceId);
+      const updatedInvoice = await payInvoice(invoiceId);
       if (updatedInvoice) {
-        setInvoices(invoices.map(i => i.id === updatedInvoice.id ? updatedInvoice : i));
+        // Optimistically update the UI
+        setInvoices(prevInvoices =>
+          prevInvoices.map(invoice =>
+            invoice.id === invoiceId ? updatedInvoice : invoice
+          )
+        );
+        toast({
+          title: "Éxito",
+          description: "Factura pagada correctamente",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo pagar la factura",
+          variant: "destructive",
+        });
       }
-    } catch (error: any) {
-      console.error(error);
+    } catch (error) {
+      console.error('Error paying invoice:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo pagar la factura",
+        variant: "destructive",
+      });
     }
   };
 
-  const printInvoice = async (invoiceId: string) => {
-    const invoice = invoices.find(i => i.id === invoiceId);
-    if (!invoice) return;
-    setInvoiceToPrint(invoice);
-    setTimeout(() => {
-      window.print();
-      setInvoiceToPrint(null);
-    }, 150);
-  };
+  const generateInvoicePDF = async (invoice) => {
+    const input = document.getElementById(`invoice-content-${invoice.id}`);
+    if (!input) {
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF de la factura",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const downloadInvoicePDF = async (invoiceId: string) => {
-    const invoice = invoices.find(i => i.id === invoiceId);
-    if (!invoice) return;
-    
-    setInvoiceToPrint(invoice);
-    setTimeout(async () => {
-      if (invoiceRef.current) {
-        const canvas = await html2canvas(invoiceRef.current, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = (canvas.height * pageWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-        pdf.save(`Factura_${invoice.invoiceNumber}.pdf`);
-      }
-      setInvoiceToPrint(null);
-    }, 300);
-  };
-
-  const getStatusBadge = (status: Invoice['status']) => {
-    switch (status) {
-      case 'pendiente':
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">Pendiente</Badge>;
-      case 'pagada':
-        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Pagada</Badge>;
-      case 'cancelada':
-        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Cancelada</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+    try {
+      const canvas = await html2canvas(input, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`invoice-${invoice.invoiceNumber}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF de la factura",
+        variant: "destructive",
+      });
     }
   };
-
-  const renderInvoiceContent = (invoice: Invoice | null) => (
-    invoice ? (
-      <div ref={invoiceRef} style={{ padding: '32px', maxWidth: '700px', margin: '0 auto', background: 'white', color: '#111', fontFamily: 'sans-serif' }}>
-        <h1 style={{ marginBottom: 0 }}>LicorHub</h1>
-        <p style={{marginTop:0, fontSize:'14px', color: '#888'}}>Factura #{invoice.invoiceNumber}</p>
-        <hr />
-        <div style={{ display:'flex', justifyContent:'space-between', margin: '18px 0'}}>
-          <div>
-            <b>Cliente:</b> {invoice.customerName} <br />
-            <b>Dirección:</b> {invoice.customerAddress}
-          </div>
-          <div>
-            <b>Fecha:</b> {new Date(invoice.date || invoice.issue_date).toLocaleDateString()} <br />
-            <b>Estado:</b> {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-          </div>
-        </div>
-        <table style={{width:'100%', borderCollapse:'collapse'}}>
-          <thead>
-            <tr style={{background:'#f9f9f9'}}>
-              <th style={{border:'1px solid #ddd', padding:'8px'}}>Producto</th>
-              <th style={{border:'1px solid #ddd', padding:'8px'}}>Cantidad</th>
-              <th style={{border:'1px solid #ddd', padding:'8px'}}>Precio Unit.</th>
-              <th style={{border:'1px solid #ddd', padding:'8px'}}>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(invoice.items || []).map((item, i) => (
-              <tr key={i}>
-                <td style={{border:'1px solid #ddd', padding:'8px'}}>{item.productName}</td>
-                <td style={{border:'1px solid #ddd', padding:'8px', textAlign:'center'}}>{item.quantity}</td>
-                <td style={{border:'1px solid #ddd', padding:'8px', textAlign:'right'}}>${item.price.toFixed(2)}</td>
-                <td style={{border:'1px solid #ddd', padding:'8px', textAlign:'right'}}>${(item.price * item.quantity).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{marginTop:'18px', textAlign:'right'}}>
-          <b>Subtotal:</b> ${(invoice.subtotal || 0).toFixed(2)}<br />
-          <b>IVA (19%):</b> ${(invoice.tax || 0).toFixed(2)}<br />
-          <b style={{fontSize:'18px'}}>Total:</b> ${(invoice.total || invoice.total_amount).toFixed(2)}
-        </div>
-      </div>
-    ) : null
-  );
 
   return (
-    <div className="space-y-6">
-      <div style={{ display: invoiceToPrint ? 'block' : 'none', position:'fixed', left:'-100vw', top:0, zIndex:-1 }}>
-        {renderInvoiceContent(invoiceToPrint)}
-      </div>
-
+    <div className="container mx-auto p-4 space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Gestión de Facturas</CardTitle>
-              <CardDescription>
-                Administra las facturas generadas a partir de pedidos
-              </CardDescription>
-            </div>
-          </div>
+          <CardTitle className="text-2xl font-bold">Facturas</CardTitle>
+          <CardDescription>Gestiona todas las facturas</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-4">
-            <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Buscar factura..."
-                  className="pl-8 md:w-[300px]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="md:w-[180px]">
-                  <div className="flex items-center">
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Estado" />
-                  </div>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex space-x-2 w-1/2">
+              <Input
+                placeholder="Buscar facturas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="pendiente">Pendiente</SelectItem>
                   <SelectItem value="pagada">Pagada</SelectItem>
+                  <SelectItem value="vencida">Vencida</SelectItem>
                   <SelectItem value="cancelada">Cancelada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
-            <Button variant="outline" size="sm" className="h-9">
-              <FileDown className="mr-2 h-4 w-4" />
-              Exportar Reporte
-            </Button>
           </div>
-            
+
+          {/* Invoices Table */}
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[100px]">Nº Factura</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Nº Pedido</TableHead>
                   <TableHead>Fecha</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-center">Estado</TableHead>
-                  <TableHead className="text-center">Acciones</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.length > 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">Cargando facturas...</TableCell>
+                  </TableRow>
+                ) : filteredInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">No se encontraron facturas</TableCell>
+                  </TableRow>
+                ) : (
                   filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                      <TableCell>{invoice.invoiceNumber}</TableCell>
                       <TableCell>{invoice.customerName}</TableCell>
-                      <TableCell>{invoice.orderNumber}</TableCell>
-                      <TableCell>{new Date(invoice.date || invoice.issue_date).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">${(invoice.total || invoice.total_amount).toFixed(2)}</TableCell>
-                      <TableCell className="text-center">
-                        {getStatusBadge(invoice.status)}
-                      </TableCell>
+                      <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
+                      <TableCell>${invoice.total?.toFixed(2)}</TableCell>
                       <TableCell>
-                        <div className="flex justify-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => viewInvoice(invoice)}
-                          >
-                            Ver
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="hidden sm:flex" 
-                            onClick={() => printInvoice(invoice.id)}
-                          >
-                            <Printer className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="hidden sm:flex" 
-                            onClick={() => downloadInvoicePDF(invoice.id)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Badge variant={invoice.status === 'pagada' ? 'default' : 
+                               invoice.status === 'cancelada' ? 'destructive' :
+                               invoice.status === 'pendiente' ? 'secondary' :
+                               invoice.status === 'vencida' ? 'outline' : 'default'}>
+                          {invoice.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              Acciones
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => viewInvoiceDetails(invoice)}>
+                              Ver detalles
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => generateInvoicePDF(invoice)}>
+                              Generar PDF
+                            </DropdownMenuItem>
+                            {invoice.status !== 'pagada' && (
+                              <DropdownMenuItem onClick={() => handlePayInvoice(invoice.id)}>
+                                Marcar como pagada
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
-                      No se encontraron facturas que coincidan con la búsqueda.
-                    </TableCell>
-                  </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
-          
-          <div className="mt-4">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious href="#" />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" isActive>1</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">2</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">3</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext href="#" />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
         </CardContent>
       </Card>
 
-      <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
-        <DialogContent className="max-w-3xl">
+      {/* View Invoice Dialog */}
+      <Dialog open={isViewInvoiceDialogOpen} onOpenChange={setIsViewInvoiceDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
           {currentInvoice && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Receipt className="mr-2 h-5 w-5" />
-                    Factura #{currentInvoice.invoiceNumber}
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => printInvoice(currentInvoice.id)}
-                    >
-                      <Printer className="h-4 w-4 mr-2" /> Imprimir
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => downloadInvoicePDF(currentInvoice.id)}
-                    >
-                      <Download className="h-4 w-4 mr-2" /> Descargar PDF
-                    </Button>
-                  </div>
-                </DialogTitle>
+                <DialogTitle>Detalles de Factura {currentInvoice.invoiceNumber}</DialogTitle>
                 <DialogDescription>
-                  Fecha: {new Date(currentInvoice.date || currentInvoice.issue_date).toLocaleDateString()}
-                  &nbsp;|&nbsp;Estado: {currentInvoice.status.charAt(0).toUpperCase() + currentInvoice.status.slice(1)}
+                  Cliente: {currentInvoice.customerName}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium mb-2">Datos de Cliente</h3>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Cliente:</span> {currentInvoice.customerName}</p>
-                      <p><span className="font-medium">Dirección:</span> {currentInvoice.customerAddress}</p>
-                    </div>
+                    <p className="text-sm font-medium">ID de Factura:</p>
+                    <p className="text-sm">{currentInvoice.id}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium mb-2">Datos de Facturación</h3>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Nº de Factura:</span> {currentInvoice.invoiceNumber}</p>
-                      <p><span className="font-medium">Nº de Pedido:</span> {currentInvoice.orderNumber}</p>
-                      <p><span className="font-medium">Fecha Emisión:</span> {new Date(currentInvoice.date || currentInvoice.issue_date).toLocaleDateString()}</p>
-                    </div>
+                    <p className="text-sm font-medium">Fecha de Emisión:</p>
+                    <p className="text-sm">{new Date(currentInvoice.date).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Cliente:</p>
+                    <p className="text-sm">{currentInvoice.customerName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Nº de Orden:</p>
+                    <p className="text-sm">{currentInvoice.orderNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Estado:</p>
+                    <p className="text-sm">{currentInvoice.status}</p>
                   </div>
                 </div>
                 
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Detalle de Productos</h3>
-                  <div className="border rounded-md">
+                {currentInvoice.items && currentInvoice.items.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-md font-medium mb-2">Productos:</h3>
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Producto</TableHead>
-                          <TableHead className="text-center">Cantidad</TableHead>
-                          <TableHead className="text-right">Precio Unit.</TableHead>
-                          <TableHead className="text-right">Subtotal</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Precio</TableHead>
+                          <TableHead>Subtotal</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(currentInvoice.items || []).map((item, index) => (
+                        {currentInvoice.items.map((item, index) => (
                           <TableRow key={index}>
-                            <TableCell>{item.productName}</TableCell>
-                            <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">${(item.price * item.quantity).toFixed(2)}</TableCell>
+                            <TableCell>{item.productName || `Producto ${item.product_id}`}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>${item.price.toFixed(2)}</TableCell>
+                            <TableCell>${(item.price * item.quantity).toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+                    <div className="text-right mt-4">
+                      <p className="text-sm font-medium">Subtotal: ${currentInvoice.subtotal?.toFixed(2)}</p>
+                      <p className="text-sm font-medium">Impuestos: ${currentInvoice.tax?.toFixed(2)}</p>
+                      <p className="text-sm font-medium">Total: ${currentInvoice.total?.toFixed(2)}</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="border-t pt-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Subtotal:</span>
-                    <span>${(currentInvoice.subtotal || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="font-medium">IVA (19%):</span>
-                    <span>${(currentInvoice.tax || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center mt-3 text-lg font-bold">
-                    <span>Total:</span>
-                    <span>${(currentInvoice.total || currentInvoice.total_amount).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                {currentInvoice.status === 'pendiente' && (
-                  <Button 
-                    onClick={() => {
-                      payInvoice(currentInvoice.id);
-                      setIsInvoiceDialogOpen(false);
-                    }}
-                  >
-                    Marcar como Pagada
-                  </Button>
                 )}
-                <Button 
-                  variant="outline"
-                  onClick={() => setIsInvoiceDialogOpen(false)}
-                >
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsViewInvoiceDialogOpen(false)}>
                   Cerrar
                 </Button>
               </DialogFooter>
