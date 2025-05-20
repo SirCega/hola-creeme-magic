@@ -7,33 +7,9 @@ import { User } from '@/types/auth-types';
  */
 export const getUserById = async (userId: string): Promise<User | null> => {
   try {
-    // First try to get user from auth.users (more reliable method)
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
+    console.log("Getting user by ID:", userId);
     
-    if (authUser?.user) {
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (profileError) {
-        console.error("Error fetching profile data:", profileError);
-      }
-      
-      // Combine auth user with profile data if available
-      const userData: User = {
-        id: authUser.user.id,
-        email: authUser.user.email || '',
-        name: profileData?.name || authUser.user.user_metadata?.name || '',
-        role: profileData?.role || authUser.user.user_metadata?.role || 'cliente',
-        address: profileData?.address || authUser.user.user_metadata?.address || ''
-      };
-      
-      return userData;
-    }
-    
-    // Fallback to the profile table
+    // First try to get profile from users table (more reliable in this application)
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -41,14 +17,33 @@ export const getUserById = async (userId: string): Promise<User | null> => {
       .single();
       
     if (error) {
-      console.error("Error fetching user data:", error);
-      return null;
+      console.error("Error fetching user data from profile:", error);
+      
+      // Fallback to auth.users metadata
+      const { data: authUser, error: authError } = await supabase.auth.getUser(userId);
+      
+      if (authError || !authUser.user) {
+        console.error("Error fetching auth user:", authError);
+        return null;
+      }
+      
+      const userData: User = {
+        id: authUser.user.id,
+        email: authUser.user.email || '',
+        name: authUser.user.user_metadata?.name || '',
+        role: authUser.user.user_metadata?.role || 'cliente',
+        address: authUser.user.user_metadata?.address || ''
+      };
+      
+      return userData;
     }
     
     if (!data) {
+      console.log("No user found with ID:", userId);
       return null;
     }
 
+    console.log("User found:", data);
     return {
       id: data.id,
       email: data.email,

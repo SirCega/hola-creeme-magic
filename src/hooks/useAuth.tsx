@@ -21,19 +21,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Setup auth state listener
   useEffect(() => {
-    // Primero establecemos el listener de cambio de autenticación
+    console.log("Setting up auth state listener");
+    
+    // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         setSupabaseUser(currentSession?.user ?? null);
         
-        // Si hay un usuario autenticado, obtener su información de perfil
+        // If there's a user authenticated, get their profile information
         if (currentSession?.user) {
-          // Usar setTimeout para evitar bloqueo
+          // Use setTimeout to avoid blocking
           setTimeout(async () => {
             try {
               const userData = await userService.getUserById(currentSession.user.id);
+              console.log("User data fetched:", userData);
               if (userData) {
                 setUser(userData);
               }
@@ -47,10 +50,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Luego verificamos si hay una sesión existente
+    // Then check if there's an existing session
     const checkExistingSession = async () => {
       try {
+        console.log("Checking for existing session");
         const { session: currentSession, user: userData } = await authService.getCurrentSession();
+        console.log("Existing session check result:", currentSession, userData);
         setSession(currentSession);
         setSupabaseUser(currentSession?.user ?? null);
         setUser(userData);
@@ -68,47 +73,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Función para iniciar sesión
+  // Login function
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      console.log("Iniciando sesión con:", email);
-      // Iniciar sesión en Supabase Auth
+      console.log("Initiating login with:", email);
+      // Login with Supabase Auth
       const { user: authUser } = await authService.signInWithEmail(email, password);
       
-      console.log("Autenticación exitosa, usuario:", authUser?.id);
+      console.log("Authentication successful, user:", authUser?.id);
 
-      // Obtener datos del usuario
+      // Get user data
       const userData = await userService.getUserById(authUser.id);
       
       if (!userData) {
-        console.error("No se pudo obtener datos del usuario");
-        throw new Error("Error al obtener datos del usuario");
+        console.error("Could not get user data");
+        throw new Error("Error getting user data");
       }
 
-      console.log("Datos de usuario obtenidos:", userData);
+      console.log("User data retrieved:", userData);
 
-      // Actualizar último login
+      // Update last login
       await userService.updateLastLogin(userData.id);
 
       toast({
-        title: "Bienvenido",
-        description: `Hola, ${userData.name}`,
+        title: "Welcome",
+        description: `Hello, ${userData.name}`,
       });
       
       navigate("/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
-      let errorMessage = "Error de autenticación";
+      let errorMessage = "Authentication error";
       
-      if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "Credenciales inválidas. Verifica tu correo y contraseña.";
-      } else if (error.message.includes("Email not confirmed")) {
-        errorMessage = "Correo electrónico no confirmado. Revisa tu bandeja de entrada.";
+      if (error.message && error.message.includes("Invalid login credentials")) {
+        errorMessage = "Invalid credentials. Check your email and password.";
+      } else if (error.message && error.message.includes("Email not confirmed")) {
+        errorMessage = "Email not confirmed. Check your inbox.";
       }
       
       toast({
-        title: "Error de autenticación",
+        title: "Authentication Error",
         description: errorMessage,
         variant: "destructive",
       });
@@ -117,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Función para cerrar sesión
+  // Logout function
   const logout = async () => {
     setIsLoading(true);
     try {
@@ -127,16 +132,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       
       toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión correctamente.",
+        title: "Session closed",
+        description: "You have successfully logged out.",
       });
       
       navigate("/auth");
     } catch (error: any) {
       console.error("Logout error:", error);
       toast({
-        title: "Error al cerrar sesión",
-        description: error.message || "Error desconocido",
+        title: "Error logging out",
+        description: error.message || "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -144,30 +149,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Función para registrar un nuevo cliente
+  // Register a new client
   const registerClient = async (userData: { email: string, password: string, name: string, address: string }) => {
     setIsLoading(true);
     try {
-      console.log("Registrando nuevo cliente:", userData.email);
+      console.log("Registering new client:", userData.email);
       await authService.registerClient(userData);
       
       toast({
-        title: "Registro exitoso",
-        description: `Bienvenido, ${userData.name}`,
+        title: "Registration successful",
+        description: `Welcome, ${userData.name}`,
       });
 
-      // Iniciamos sesión después del registro
+      // Login after registration
       await login(userData.email, userData.password);
     } catch (error: any) {
       console.error("Registration error:", error);
       
-      let errorMessage = "Error de registro";
-      if (error.message.includes("User already registered")) {
-        errorMessage = "Este correo electrónico ya está registrado.";
+      let errorMessage = "Registration error";
+      if (error.message && error.message.includes("User already registered")) {
+        errorMessage = "This email is already registered.";
       }
       
       toast({
-        title: "Error de registro",
+        title: "Registration error",
         description: errorMessage,
         variant: "destructive",
       });
@@ -176,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Función para obtener todos los usuarios (solo admin)
+  // Get all users (admin only)
   const getAllUsers = async (): Promise<User[]> => {
     if (!user || user.role !== 'admin') {
       return [];
@@ -184,7 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return await userService.getAllUsers(user?.role);
   };
 
-  // Función para verificar si el usuario tiene acceso según su rol
+  // Check if user has access based on their role
   const hasAccess = (allowedRoles: string[]) => {
     return accessControlService.hasAccess(user, allowedRoles);
   };
@@ -214,5 +219,4 @@ export const useAuth = () => {
   return context;
 };
 
-// Corregimos el error TS1205 usando export type
 export type { User } from '@/types/auth-types';
