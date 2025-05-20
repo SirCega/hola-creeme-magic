@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,21 +54,22 @@ const Inventory: React.FC = () => {
     name: '',
     description: '',
     category: '',
-    brand: '',
     price: 0,
-    cost: 0,
     sku: '',
+    box_qty: 0,
+    threshold: 0,
+    min_stock: 0,
     stock: 0,
+    brand: '',
+    cost: 0,
     unit: '',
     status: 'active',
-    box_qty: 0,
-    min_stock: 0,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });
 
   const [transferRequest, setTransferRequest] = useState<TransferRequest>({
-    product_id: '',
+    productId: '',
     quantity: 0,
     sourceWarehouseId: '',
     destinationWarehouseId: '',
@@ -84,10 +84,10 @@ const Inventory: React.FC = () => {
 
   const lowStockProducts = products.filter(product => {
     // Check if any warehouse is below min_stock
-    const isLowStock = product.stock < product.min_stock ||
-      (product.stock_1 ?? 0) < product.min_stock ||
-      (product.stock_2 ?? 0) < product.min_stock ||
-      (product.stock_3 ?? 0) < product.min_stock;
+    const isLowStock = (product.stock || 0) < (product.min_stock || 0) ||
+      (product.stock_1 || 0) < (product.min_stock || 0) ||
+      (product.stock_2 || 0) < (product.min_stock || 0) ||
+      (product.stock_3 || 0) < (product.min_stock || 0);
     
     return isLowStock;
   });
@@ -95,7 +95,7 @@ const Inventory: React.FC = () => {
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!transferRequest.product_id || !transferRequest.sourceWarehouseId || !transferRequest.destinationWarehouseId || transferRequest.quantity <= 0) {
+    if (!transferRequest.productId || !transferRequest.sourceWarehouseId || !transferRequest.destinationWarehouseId || transferRequest.quantity <= 0) {
       toast({
         title: "Error",
         description: "Por favor complete todos los campos correctamente",
@@ -115,7 +115,7 @@ const Inventory: React.FC = () => {
     
     try {
       const success = await transferInventory(
-        transferRequest.product_id,
+        transferRequest.productId,
         transferRequest.sourceWarehouseId,
         transferRequest.destinationWarehouseId,
         transferRequest.quantity
@@ -124,7 +124,7 @@ const Inventory: React.FC = () => {
       if (success) {
         // Reset form
         setTransferRequest({
-          product_id: '',
+          productId: '',
           quantity: 0,
           sourceWarehouseId: '',
           destinationWarehouseId: '',
@@ -149,14 +149,14 @@ const Inventory: React.FC = () => {
   };
 
   const getWarehouseStock = (product: Product, warehouseId: string) => {
-    if (warehouseId === 'main') return product.stock;
-    if (warehouseId === '1') return product.stock_1 ?? 0;
-    if (warehouseId === '2') return product.stock_2 ?? 0;
-    if (warehouseId === '3') return product.stock_3 ?? 0;
+    if (warehouseId === 'main') return product.stock || 0;
+    if (warehouseId === '1') return product.stock_1 || 0;
+    if (warehouseId === '2') return product.stock_2 || 0;
+    if (warehouseId === '3') return product.stock_3 || 0;
     return 0;
   };
 
-  const renderStockStatus = (stock: number, minStock: number) => {
+  const renderStockStatus = (stock: number, minStock: number = 0) => {
     if (stock <= 0) {
       return <span className="text-red-500 font-bold">Sin Stock</span>;
     } else if (stock < minStock) {
@@ -312,8 +312,8 @@ const Inventory: React.FC = () => {
                   <div>
                     <Label htmlFor="product">Producto</Label>
                     <Select 
-                      value={transferRequest.product_id} 
-                      onValueChange={(value) => setTransferRequest({...transferRequest, product_id: value})}>
+                      value={transferRequest.productId} 
+                      onValueChange={(value) => setTransferRequest({...transferRequest, productId: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar producto" />
                       </SelectTrigger>
@@ -408,19 +408,19 @@ const Inventory: React.FC = () => {
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.sku}</TableCell>
                       <TableCell>
-                        {product.stock} / {product.min_stock}
-                        {renderStockStatus(product.stock, product.min_stock)}
+                        {product.stock || 0} / {product.min_stock || 0}
+                        {renderStockStatus(product.stock || 0, product.min_stock || 0)}
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-around">
                           <div>
-                            <span className="text-xs">A1:</span> {product.stock_1 ?? 0}
+                            <span className="text-xs">A1:</span> {product.stock_1 || 0}
                           </div>
                           <div>
-                            <span className="text-xs">A2:</span> {product.stock_2 ?? 0}
+                            <span className="text-xs">A2:</span> {product.stock_2 || 0}
                           </div>
                           <div>
-                            <span className="text-xs">A3:</span> {product.stock_3 ?? 0}
+                            <span className="text-xs">A3:</span> {product.stock_3 || 0}
                           </div>
                         </div>
                       </TableCell>
@@ -468,11 +468,11 @@ const Inventory: React.FC = () => {
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>{product.sku}</TableCell>
                         <TableCell>{product.category}</TableCell>
-                        <TableCell className="text-center">{product.stock}</TableCell>
-                        <TableCell className="text-center">{product.stock_1 ?? 0}</TableCell>
-                        <TableCell className="text-center">{product.stock_2 ?? 0}</TableCell>
-                        <TableCell className="text-center">{product.stock_3 ?? 0}</TableCell>
-                        <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-center">{product.stock || 0}</TableCell>
+                        <TableCell className="text-center">{product.stock_1 || 0}</TableCell>
+                        <TableCell className="text-center">{product.stock_2 || 0}</TableCell>
+                        <TableCell className="text-center">{product.stock_3 || 0}</TableCell>
+                        <TableCell className="text-right">${product.price?.toFixed(2) || '0.00'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

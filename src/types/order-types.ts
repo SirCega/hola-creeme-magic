@@ -11,6 +11,15 @@ export interface Order {
   updated_at?: string;
   items?: OrderItem[];
   customer?: User;
+  
+  // Additional properties needed by components
+  orderNumber?: string;
+  date?: string;
+  address?: string;
+  deliveryPersonName?: string;
+  deliveryPersonId?: number;
+  total?: number;
+  customerId?: string;
 }
 
 export interface OrderItem {
@@ -21,6 +30,7 @@ export interface OrderItem {
   price: number;
   warehouse_id?: string;
   subtotal?: number;
+  productName?: string;
 }
 
 export interface Invoice {
@@ -35,6 +45,10 @@ export interface Invoice {
   pdf_url?: string;
   order?: Order;
   customer?: User;
+  
+  // Additional properties needed by components
+  customerName?: string;
+  invoiceNumber?: string;
 }
 
 export interface Delivery {

@@ -6,14 +6,13 @@ import {
   getAllDeliveries, 
   updateOrderStatus, 
   getCustomers,
-  createOrder,
-  Customer,
-  Order,
-  Invoice,
-  Delivery,
-  OrderItem
+  createOrder
 } from '@/services/order.service';
 import { useToast } from './use-toast';
+import { Order, Invoice, Delivery, OrderItem } from '@/types/order-types';
+import { User } from '@/types/auth-types';
+
+export type Customer = User;
 
 export function useOrderService() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -35,9 +34,22 @@ export function useOrderService() {
     try {
       setLoading(true);
       const data = await getAllOrders();
-      setOrders(data);
+      
+      // Process orders to add required properties
+      const processedOrders = data.map(order => ({
+        ...order,
+        orderNumber: `ORD-${order.id.substring(0, 8)}`,
+        date: order.created_at,
+        address: order.shipping_address,
+        total: order.total_amount,
+        customerId: order.customer_id,
+        // Format customer name if available
+        customer: order.customer ? order.customer.name : `Client ${order.customer_id.substring(0, 6)}`
+      }));
+      
+      setOrders(processedOrders);
       setError(null);
-      return data;
+      return processedOrders;
     } catch (err) {
       setError('Error loading orders');
       console.error(err);

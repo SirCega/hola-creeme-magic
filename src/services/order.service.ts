@@ -1,7 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Order, Invoice, Delivery, OrderItem } from '@/types/order-types';
 import { User } from '@/types/auth-types';
+import { useOrderService } from '@/hooks/useOrderService';
 
 type Customer = User;
 
@@ -232,5 +232,6 @@ export const getCustomers = async (): Promise<Customer[]> => {
   }
 };
 
-// Export types directly
+// Export types and hook
 export type { Customer, Order, Invoice, Delivery, OrderItem };
+export { useOrderService };

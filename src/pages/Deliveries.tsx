@@ -44,7 +44,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { useOrderService, Order } from '@/services/order.service';
+import { useOrderService } from '@/hooks/useOrderService';
+import { Order } from '@/types/order-types';
 
 // Datos de domiciliarios
 const deliveryPeople = [
@@ -65,16 +66,16 @@ const Deliveries: React.FC = () => {
   const [isViewDeliveryDialogOpen, setIsViewDeliveryDialogOpen] = useState(false);
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState<number | null>(null);
   const { toast } = useToast();
-  const orderService = useOrderService();
+  const { orders: serviceOrders, loading, updateOrderStatus, loadOrders } = useOrderService();
   
   // Cargar pedidos
   useEffect(() => {
     const loadData = async () => {
-      const data = await orderService.loadOrders();
-      setOrders(orderService.orders);
+      await loadOrders();
+      setOrders(serviceOrders);
     };
     loadData();
-  }, []);
+  }, [serviceOrders]);
   
   // Pedidos que son entregas (preparados o enviados)
   const pendingDeliveries = orders.filter(order => 
@@ -112,13 +113,13 @@ const Deliveries: React.FC = () => {
     return filteredOrders.filter(order => {
       const customerName = typeof order.customer === 'string' 
         ? order.customer.toLowerCase() 
-        : order.customer?.email?.toLowerCase() || '';
+        : order.customer?.name?.toLowerCase() || '';
       
-      const orderNumber = order.orderNumber?.toLowerCase() || '';
+      const orderNum = order.orderNumber?.toLowerCase() || '';
       
       return (searchQuery === '' || 
         customerName.includes(searchQuery.toLowerCase()) || 
-        orderNumber.includes(searchQuery.toLowerCase())) &&
+        orderNum.includes(searchQuery.toLowerCase())) &&
         (statusFilter === 'all' || order.status === statusFilter);
     });
   };
@@ -145,7 +146,7 @@ const Deliveries: React.FC = () => {
       }
       
       // Actualizar el estado del pedido a enviado
-      await orderService.updateOrderStatus(
+      await updateOrderStatus(
         currentOrder.id,
         'enviado',
         deliveryPerson.id,
@@ -153,12 +154,12 @@ const Deliveries: React.FC = () => {
       );
       
       // Actualizar la lista de pedidos
-      await orderService.loadOrders();
-      setOrders(orderService.orders);
+      await loadOrders();
+      setOrders(serviceOrders);
       
       toast({
         title: "Domiciliario asignado",
-        description: `${deliveryPerson.name} ha sido asignado al pedido #${currentOrder.orderNumber}`
+        description: `${deliveryPerson.name} ha sido asignado al pedido #${currentOrder.orderNumber || currentOrder.id.substring(0, 8)}`
       });
       
       // Cerrar diálogo y limpiar selección
@@ -185,18 +186,18 @@ const Deliveries: React.FC = () => {
     
     try {
       // Actualizar el estado del pedido a entregado
-      await orderService.updateOrderStatus(
+      await updateOrderStatus(
         currentOrder.id,
         'entregado'
       );
       
       // Actualizar la lista de pedidos
-      await orderService.loadOrders();
-      setOrders(orderService.orders);
+      await loadOrders();
+      setOrders(serviceOrders);
       
       toast({
         title: "Entrega completada",
-        description: `El pedido #${currentOrder.orderNumber} ha sido entregado exitosamente.`
+        description: `El pedido #${currentOrder.orderNumber || currentOrder.id.substring(0, 8)} ha sido entregado exitosamente.`
       });
       
       // Cerrar diálogo
@@ -355,16 +356,16 @@ const Deliveries: React.FC = () => {
                   {filteredDeliveries.length > 0 ? (
                     filteredDeliveries.map((delivery) => (
                       <TableRow key={delivery.id}>
-                        <TableCell className="font-medium">{delivery.orderNumber}</TableCell>
-                        <TableCell>{delivery.customer}</TableCell>
-                        <TableCell>{new Date(delivery.date).toLocaleDateString()}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{delivery.address}</TableCell>
+                        <TableCell className="font-medium">{delivery.orderNumber || delivery.id.substring(0, 8)}</TableCell>
+                        <TableCell>{typeof delivery.customer === 'string' ? delivery.customer : delivery.customer?.name}</TableCell>
+                        <TableCell>{new Date(delivery.date || delivery.created_at || '').toLocaleDateString()}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{delivery.address || delivery.shipping_address}</TableCell>
                         <TableCell>
                           {delivery.deliveryPersonName || (
                             <span className="text-muted-foreground italic">Sin asignar</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">${delivery.total.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">${(delivery.total || delivery.total_amount).toFixed(2)}</TableCell>
                         <TableCell className="text-center">{getStatusBadge(delivery.status)}</TableCell>
                         <TableCell>
                           <div className="flex justify-center space-x-2">
@@ -413,7 +414,7 @@ const Deliveries: React.FC = () => {
               <DialogHeader>
                 <DialogTitle>Asignar Domiciliario</DialogTitle>
                 <DialogDescription>
-                  Seleccione un domiciliario para el pedido #{currentOrder.orderNumber}
+                  Seleccione un domiciliario para el pedido #{currentOrder.orderNumber || currentOrder.id.substring(0, 8)}
                 </DialogDescription>
               </DialogHeader>
               
@@ -424,11 +425,17 @@ const Deliveries: React.FC = () => {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Cliente:</span>
-                        <span className="font-medium">{currentOrder.customer}</span>
+                        <span className="font-medium">
+                          {typeof currentOrder.customer === 'string' 
+                            ? currentOrder.customer 
+                            : currentOrder.customer?.name || ''}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Dirección:</span>
-                        <span className="font-medium max-w-[200px] text-right">{currentOrder.address}</span>
+                        <span className="font-medium max-w-[200px] text-right">
+                          {currentOrder.address || currentOrder.shipping_address}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Productos:</span>
@@ -436,7 +443,7 @@ const Deliveries: React.FC = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Total:</span>
-                        <span className="font-medium">${currentOrder.total.toFixed(2)}</span>
+                        <span className="font-medium">${(currentOrder.total || currentOrder.total_amount).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -508,10 +515,10 @@ const Deliveries: React.FC = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center">
                   <Truck className="mr-2 h-5 w-5" />
-                  Detalle de Entrega #{currentOrder.orderNumber}
+                  Detalle de Entrega #{currentOrder.orderNumber || currentOrder.id.substring(0, 8)}
                 </DialogTitle>
                 <DialogDescription>
-                  Pedido realizado el {new Date(currentOrder.date).toLocaleDateString()}
+                  Pedido realizado el {new Date(currentOrder.date || currentOrder.created_at || '').toLocaleDateString()}
                 </DialogDescription>
               </DialogHeader>
               
@@ -524,9 +531,13 @@ const Deliveries: React.FC = () => {
                         Información del Cliente
                       </h3>
                       <div className="bg-muted/30 rounded-md p-3">
-                        <p className="font-medium">{currentOrder.customer}</p>
+                        <p className="font-medium">
+                          {typeof currentOrder.customer === 'string' 
+                            ? currentOrder.customer 
+                            : currentOrder.customer?.name || ''}
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                          Cliente #{currentOrder.customerId}
+                          Cliente #{currentOrder.customer_id.substring(0, 8)}
                         </p>
                       </div>
                     </div>
@@ -537,7 +548,7 @@ const Deliveries: React.FC = () => {
                         Dirección de Entrega
                       </h3>
                       <div className="bg-muted/30 rounded-md p-3">
-                        <p className="text-sm">{currentOrder.address}</p>
+                        <p className="text-sm">{currentOrder.address || currentOrder.shipping_address}</p>
                       </div>
                     </div>
                     
@@ -579,14 +590,14 @@ const Deliveries: React.FC = () => {
                         <ul className="space-y-2">
                           {currentOrder.items?.map((item, index) => (
                             <li key={index} className="text-sm flex justify-between">
-                              <span>{item.quantity}x {item.productName}</span>
+                              <span>{item.quantity}x {item.productName || `Producto ${item.product_id.substring(0, 6)}`}</span>
                               <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
                             </li>
                           ))}
                         </ul>
                         <div className="mt-3 pt-3 border-t flex justify-between font-medium">
                           <span>Total:</span>
-                          <span>${currentOrder.total.toFixed(2)}</span>
+                          <span>${(currentOrder.total || currentOrder.total_amount).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -609,7 +620,9 @@ const Deliveries: React.FC = () => {
                             </div>
                             <div>
                               <p className="text-sm font-medium">Pedido recibido</p>
-                              <p className="text-xs text-muted-foreground">{new Date(currentOrder.date).toLocaleString()}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(currentOrder.date || currentOrder.created_at || '').toLocaleString()}
+                              </p>
                             </div>
                           </div>
                           

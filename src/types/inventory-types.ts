@@ -7,8 +7,17 @@ export interface Product {
   price: number;
   description?: string;
   image_url?: string;
+  stock?: number;
+  stock_1?: number;
+  stock_2?: number;
+  stock_3?: number;
+  min_stock?: number;
   box_qty: number;
   threshold: number;
+  brand?: string;
+  cost?: number;
+  unit?: string;
+  status?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -18,6 +27,7 @@ export interface TransferRequest {
   sourceWarehouseId: string;
   destinationWarehouseId: string;
   quantity: number;
+  notes?: string;
 }
 
 export interface InventoryMovement {
@@ -39,4 +49,7 @@ export interface Warehouse {
   name: string;
   type: string;
   address?: string;
+  location?: string;
+  capacity?: number;
+  status?: string;
 }

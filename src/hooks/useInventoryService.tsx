@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { 
   getProducts, 
@@ -18,10 +19,10 @@ export function useInventoryService() {
   const [error, setError] = useState<string | null>(null);
   const [movements, setMovements] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([
-    { id: 'main', name: 'Principal', location: 'Sede Central', capacity: 1000, status: 'active' },
-    { id: '1', name: 'Almacén 1', location: 'Sede Norte', capacity: 500, status: 'active' },
-    { id: '2', name: 'Almacén 2', location: 'Sede Sur', capacity: 500, status: 'active' },
-    { id: '3', name: 'Almacén 3', location: 'Sede Este', capacity: 300, status: 'active' },
+    { id: 'main', name: 'Principal', type: 'main', address: 'Sede Central', capacity: 1000, status: 'active' },
+    { id: '1', name: 'Almacén 1', type: 'secondary', address: 'Sede Norte', capacity: 500, status: 'active' },
+    { id: '2', name: 'Almacén 2', type: 'secondary', address: 'Sede Sur', capacity: 500, status: 'active' },
+    { id: '3', name: 'Almacén 3', type: 'secondary', address: 'Sede Este', capacity: 300, status: 'active' },
   ]);
   const { toast } = useToast();
 
