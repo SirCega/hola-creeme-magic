@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Product, TransferRequest } from '@/types/inventory-types';
 
@@ -323,5 +322,5 @@ export const getInventoryMovements = async (productId?: string): Promise<any[]> 
 };
 
 // Re-exportamos los tipos para que sean accesibles
-export { Product, TransferRequest } from '@/types/inventory-types';
+export type { Product, TransferRequest } from '@/types/inventory-types';
 export { useInventoryService } from '@/hooks/useInventoryService';

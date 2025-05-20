@@ -1,4 +1,6 @@
 
+// Define all inventory-related types in this file
+
 export interface Product {
   id: string;
   name: string;

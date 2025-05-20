@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { 
   getProducts, 
@@ -10,7 +9,7 @@ import {
   transferInventory, 
   getInventoryMovements 
 } from '@/services/inventory.service';
-import { Product, TransferRequest, InventoryMovement, Warehouse } from '@/types/inventory-types';
+import type { Product, TransferRequest, InventoryMovement, Warehouse } from '@/types/inventory-types';
 import { useToast } from './use-toast';
 
 export function useInventoryService() {
@@ -294,3 +293,5 @@ export function useInventoryService() {
     addProduct
   };
 }
+
+export type { Product, TransferRequest, InventoryMovement, Warehouse };
