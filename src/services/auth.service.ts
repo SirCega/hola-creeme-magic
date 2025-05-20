@@ -19,6 +19,11 @@ export const signInWithEmail = async (email: string, password: string) => {
       throw error;
     }
 
+    if (!data || !data.user) {
+      console.error("No user data returned from authentication");
+      throw new Error("Error de autenticación - No se devolvieron datos de usuario");
+    }
+
     console.log("Sign in successful:", data);
     return data;
   } catch (error) {
@@ -106,7 +111,12 @@ export const registerClient = async (userData: {
 export const getCurrentSession = async () => {
   console.log("Getting current session");
   try {
-    const { data } = await supabase.auth.getSession();
+    const { data, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error("Error getting session:", error);
+      return { session: null, user: null };
+    }
     
     if (!data.session) {
       console.log("No active session found");

@@ -30,6 +30,7 @@ const Auth: React.FC = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
+      console.log("User already logged in, redirecting to dashboard");
       navigate('/dashboard');
     }
   }, [user, navigate]);
@@ -49,7 +50,29 @@ const Auth: React.FC = () => {
       // Navigation is handled by the useEffect hook when user state updates
     } catch (error: any) {
       console.error("Login error in form handler:", error);
-      setLoginError(error.message || 'Error al iniciar sesión');
+      
+      // More specific error messages
+      let errorMessage = 'Error al iniciar sesión';
+      
+      if (error.message) {
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Credenciales inválidas. Verifique su email y contraseña.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Email no confirmado. Verifique su bandeja de entrada.";
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Demasiados intentos. Inténtalo más tarde.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setLoginError(errorMessage);
+      
+      toast({
+        variant: "destructive",
+        title: "Error de inicio de sesión",
+        description: errorMessage,
+      });
     }
   };
 
@@ -72,7 +95,24 @@ const Auth: React.FC = () => {
       // Login is handled within registerClient if successful
     } catch (error: any) {
       console.error("Registration error in form handler:", error);
-      setRegisterError(error.message || 'Error al registrarse');
+      
+      let errorMessage = 'Error al registrarse';
+      
+      if (error.message) {
+        if (error.message.includes("User already registered")) {
+          errorMessage = "Este email ya está registrado.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setRegisterError(errorMessage);
+      
+      toast({
+        variant: "destructive",
+        title: "Error de registro",
+        description: errorMessage,
+      });
     }
   };
 
