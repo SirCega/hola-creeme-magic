@@ -2,89 +2,43 @@
 export interface Product {
   id: string;
   name: string;
-  sku: string;
-  description?: string;
-  price: number;
+  description: string;
   category: string;
-  threshold: number;
+  brand: string;
+  price: number;
+  cost: number;
+  sku: string;
+  stock: number;
+  stock_1?: number;
+  stock_2?: number;
+  stock_3?: number;
+  unit: string;
+  status: string;
   box_qty: number;
+  min_stock: number;
+  created_at: string;
+  updated_at: string;
   image_url?: string;
-  created_at?: string;
-  updated_at?: string;
-  
-  // Stock quantities in different warehouses
-  stock?: {
-    [warehouseId: string]: number;
-  };
-  
-  // UI specific fields for warehouse quantities
-  warehouse_quantities?: {
-    [key: string]: number;
-  };
-}
-
-export interface Warehouse {
-  id: string;
-  name: string;
-  type: string;
-  address?: string;
-}
-
-export interface Movement {
-  id: string;
-  type: 'entrada' | 'salida' | 'transferencia' | 'ajuste';
-  product_id: string;
-  warehouse_id: string;
-  quantity: number;
-  source_warehouse_id?: string;
-  destination_warehouse_id?: string;
-  responsible_id: string;
-  notes?: string;
-  created_at?: string;
-  
-  // Extended information
-  product?: {
-    name: string;
-    sku: string;
-  };
-  warehouse?: {
-    name: string;
-  };
-  source_warehouse?: {
-    name: string;
-  };
-  destination_warehouse?: {
-    name: string;
-  };
-  responsible?: {
-    name: string;
-  };
 }
 
 export interface TransferRequest {
   product_id: string;
+  quantity: number;
   sourceWarehouseId: string;
   destinationWarehouseId: string;
-  quantity: number;
-  responsible_id: string;
   notes?: string;
 }
 
-export interface InventoryItem {
+export interface InventoryMovement {
   id: string;
   product_id: string;
   warehouse_id: string;
+  destination_warehouse_id?: string;
   quantity: number;
-  updated_at?: string;
-  
-  // Extended information
-  product?: Product;
-  warehouse?: Warehouse;
-}
-
-// Alias Movement as InventoryMovement for compatibility
-export type InventoryMovement = Movement;
-
-export interface ProductWithStock extends Omit<Product, 'stock'> {
-  stock: number;
+  movement_type: string;
+  date: string;
+  notes?: string;
+  product?: {
+    name: string;
+  };
 }

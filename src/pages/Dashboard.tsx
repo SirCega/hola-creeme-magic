@@ -125,7 +125,7 @@ const Dashboard: React.FC = () => {
 
       <div className="mt-6">
         {hasAccess(['admin']) && (
-          <Button onClick={() => navigate('/admin/users')}>
+          <Button onClick={() => navigate('/usuarios')}>
             Gestionar Usuarios
           </Button>
         )}

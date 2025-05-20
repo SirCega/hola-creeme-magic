@@ -1,16 +1,27 @@
 
 import { useState, useEffect } from 'react';
-import { getOrders, getAllInvoices, getAllDeliveries, updateOrderStatus, getCustomers } from '@/services/order.service';
-import { User } from '@/types/auth-types';
-import { Order, Invoice, Delivery, OrderItem } from '@/types/order-types';
+import { 
+  getAllOrders, 
+  getAllInvoices, 
+  getAllDeliveries, 
+  updateOrderStatus, 
+  getCustomers,
+  Customer,
+  Order,
+  Invoice,
+  Delivery,
+  OrderItem
+} from '@/services/order.service';
+import { useToast } from './use-toast';
 
 export function useOrderService() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-  const [customers, setCustomers] = useState<User[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadOrders();
@@ -22,7 +33,7 @@ export function useOrderService() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const data = getOrders();
+      const data = await getAllOrders();
       setOrders(data);
       setError(null);
     } catch (err) {
@@ -80,10 +91,23 @@ export function useOrderService() {
       setLoading(true);
       await updateOrderStatus(orderId, status, deliveryPersonId, deliveryPersonName);
       await loadOrders();
+      
+      toast({
+        title: "Estado actualizado",
+        description: `Orden ${orderId} actualizada a ${status}`,
+      });
+      
       return true;
     } catch (err) {
       setError('Error updating order status');
       console.error(err);
+      
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la orden",
+        variant: "destructive",
+      });
+      
       return false;
     } finally {
       setLoading(false);

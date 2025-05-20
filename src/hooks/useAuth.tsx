@@ -178,6 +178,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Función para obtener todos los usuarios (solo admin)
   const getAllUsers = async (): Promise<User[]> => {
+    if (!user || user.role !== 'admin') {
+      return [];
+    }
     return await userService.getAllUsers(user?.role);
   };
 

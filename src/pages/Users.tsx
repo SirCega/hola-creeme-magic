@@ -1,5 +1,5 @@
+
 import React, { useEffect, useState } from 'react';
-import { getAllUsers } from '@/services/user.service';
 import { useAuth } from '@/hooks/useAuth';
 import { User } from '@/types/auth-types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table"
 
 const Users: React.FC = () => {
-  const { user } = useAuth();
+  const { user, getAllUsers } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ const Users: React.FC = () => {
 
       try {
         setLoading(true);
-        const usersData = await getAllUsers(user.role);
+        const usersData = await getAllUsers();
         setUsers(usersData);
       } catch (error) {
         console.error("Error fetching users:", error);
@@ -47,7 +47,7 @@ const Users: React.FC = () => {
     };
 
     fetchUsers();
-  }, [user, toast]);
+  }, [user, toast, getAllUsers]);
 
   if (loading) {
     return <div>Loading...</div>;
