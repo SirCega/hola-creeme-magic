@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Logo from '@/components/Layout/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { Wine } from 'lucide-react';
 
@@ -28,17 +27,25 @@ const Auth: React.FC = () => {
 
   const handleLoginWithEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
+    try {
+      await login(email, password);
+    } catch (error) {
+      console.error("Login error in form handler:", error);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    await registerClient({
-      email: registerEmail,
-      password: registerPassword,
-      name: registerName,
-      address: registerAddress
-    });
+    try {
+      await registerClient({
+        email: registerEmail,
+        password: registerPassword,
+        name: registerName,
+        address: registerAddress
+      });
+    } catch (error) {
+      console.error("Registration error in form handler:", error);
+    }
   };
 
   return (

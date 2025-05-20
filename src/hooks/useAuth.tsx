@@ -81,7 +81,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Login with Supabase Auth
       const { user: authUser } = await authService.signInWithEmail(email, password);
       
-      console.log("Authentication successful, user:", authUser?.id);
+      if (!authUser) {
+        throw new Error("Authentication failed");
+      }
+      
+      console.log("Authentication successful, user:", authUser.id);
 
       // Get user data
       const userData = await userService.getUserById(authUser.id);
@@ -97,26 +101,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await userService.updateLastLogin(userData.id);
 
       toast({
-        title: "Welcome",
-        description: `Hello, ${userData.name}`,
+        title: "Bienvenido",
+        description: `Hola, ${userData.name}`,
       });
       
       navigate("/dashboard");
+      return userData;
     } catch (error: any) {
       console.error("Login error:", error);
-      let errorMessage = "Authentication error";
+      let errorMessage = "Error de autenticación";
       
       if (error.message && error.message.includes("Invalid login credentials")) {
-        errorMessage = "Invalid credentials. Check your email and password.";
+        errorMessage = "Credenciales inválidas. Verifica tu email y contraseña.";
       } else if (error.message && error.message.includes("Email not confirmed")) {
-        errorMessage = "Email not confirmed. Check your inbox.";
+        errorMessage = "Email no confirmado. Verifica tu bandeja de entrada.";
       }
       
       toast({
-        title: "Authentication Error",
+        title: "Error de Autenticación",
         description: errorMessage,
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -132,16 +138,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       
       toast({
-        title: "Session closed",
-        description: "You have successfully logged out.",
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente.",
       });
       
       navigate("/auth");
     } catch (error: any) {
       console.error("Logout error:", error);
       toast({
-        title: "Error logging out",
-        description: error.message || "Unknown error",
+        title: "Error al cerrar sesión",
+        description: error.message || "Error desconocido",
         variant: "destructive",
       });
     } finally {
@@ -157,8 +163,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await authService.registerClient(userData);
       
       toast({
-        title: "Registration successful",
-        description: `Welcome, ${userData.name}`,
+        title: "Registro exitoso",
+        description: `Bienvenido, ${userData.name}`,
       });
 
       // Login after registration
@@ -166,16 +172,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.error("Registration error:", error);
       
-      let errorMessage = "Registration error";
+      let errorMessage = "Error de registro";
       if (error.message && error.message.includes("User already registered")) {
-        errorMessage = "This email is already registered.";
+        errorMessage = "Este email ya está registrado.";
       }
       
       toast({
-        title: "Registration error",
+        title: "Error de registro",
         description: errorMessage,
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }

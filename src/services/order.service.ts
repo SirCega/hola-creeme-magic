@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Order, Invoice, Delivery, OrderItem, Customer } from '@/types/order-types';
 import { useOrderService } from '@/hooks/useOrderService';
@@ -17,7 +18,25 @@ export const getAllOrders = async (): Promise<Order[]> => {
       return [];
     }
 
-    return data || [];
+    // Transform data to match Order type
+    return data?.map(order => ({
+      id: order.id,
+      customer_id: order.customer_id,
+      status: order.status,
+      shipping_address: order.shipping_address,
+      total_amount: order.total_amount,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      items: order.items,
+      customer: order.customer,
+      // Additional properties
+      orderNumber: order.id.substring(0, 8).toUpperCase(),
+      date: new Date(order.created_at || '').toLocaleDateString(),
+      address: order.shipping_address,
+      total: order.total_amount,
+      customerId: order.customer_id
+    })) || [];
+
   } catch (error) {
     console.error("Error in getAllOrders:", error);
     return [];
@@ -40,7 +59,22 @@ export const getCustomerOrders = async (customerId: string): Promise<Order[]> =>
       return [];
     }
 
-    return data || [];
+    return data?.map(order => ({
+      id: order.id,
+      customer_id: order.customer_id,
+      status: order.status,
+      shipping_address: order.shipping_address,
+      total_amount: order.total_amount,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      items: order.items,
+      // Additional properties
+      orderNumber: order.id.substring(0, 8).toUpperCase(),
+      date: new Date(order.created_at || '').toLocaleDateString(),
+      address: order.shipping_address,
+      total: order.total_amount,
+      customerId: order.customer_id
+    })) || [];
   } catch (error) {
     console.error("Error in getCustomerOrders:", error);
     return [];
@@ -96,7 +130,12 @@ export const createOrder = async (
 
     return {
       ...order,
-      items
+      items,
+      orderNumber: order.id.substring(0, 8).toUpperCase(),
+      date: new Date(order.created_at || '').toLocaleDateString(),
+      address: order.shipping_address,
+      total: order.total_amount,
+      customerId: order.customer_id
     };
   } catch (error) {
     console.error("Error in createOrder:", error);
@@ -155,7 +194,18 @@ export const getAllInvoices = async (): Promise<Invoice[]> => {
       return [];
     }
 
-    return data || [];
+    return data?.map(invoice => ({
+      ...invoice,
+      customerName: invoice.customer?.name || '',
+      customerAddress: invoice.customer?.address || '',
+      invoiceNumber: invoice.invoice_number,
+      orderNumber: invoice.order?.id.substring(0, 8).toUpperCase() || '',
+      date: new Date(invoice.issue_date || '').toLocaleDateString(),
+      items: invoice.order?.items || [],
+      subtotal: invoice.total_amount - invoice.tax_amount,
+      tax: invoice.tax_amount,
+      total: invoice.total_amount
+    })) || [];
   } catch (error) {
     console.error("Error in getAllInvoices:", error);
     return [];
@@ -178,7 +228,18 @@ export const getCustomerInvoices = async (customerId: string): Promise<Invoice[]
       return [];
     }
 
-    return data || [];
+    return data?.map(invoice => ({
+      ...invoice,
+      customerName: '',
+      customerAddress: '',
+      invoiceNumber: invoice.invoice_number,
+      orderNumber: invoice.order?.id.substring(0, 8).toUpperCase() || '',
+      date: new Date(invoice.issue_date || '').toLocaleDateString(),
+      items: invoice.order?.items || [],
+      subtotal: invoice.total_amount - invoice.tax_amount,
+      tax: invoice.tax_amount,
+      total: invoice.total_amount
+    })) || [];
   } catch (error) {
     console.error("Error in getCustomerInvoices:", error);
     return [];
