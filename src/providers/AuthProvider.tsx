@@ -1,15 +1,14 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
-import { User, AuthContextType } from '@/types/auth-types';
+import { User } from '@/types/auth-types';
 import * as authService from '@/services/auth.service';
 import * as userService from '@/services/user.service';
 import * as accessControlService from '@/services/access-control.service';
-
-const AuthContext = createContext<AuthContextType | null>(null);
+import AuthContext from '@/contexts/AuthContext';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -217,12 +216,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export type { User } from '@/types/auth-types';
+export default AuthProvider;
