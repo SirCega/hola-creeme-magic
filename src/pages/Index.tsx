@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import LandingPage from './LandingPage';
 
 const Index: React.FC = () => {
-  return <Navigate to="/auth" replace />;
+  return <LandingPage />;
 };
 
 export default Index;

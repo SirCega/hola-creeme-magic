@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import AppLayout from "./components/Layout/AppLayout";
 import Auth from "./pages/Auth";
 import React from "react";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Navigate to="/auth" replace />} />
             
@@ -63,7 +65,6 @@ const App = () => (
                 <AppLayout />
               </ProtectedRouteContent>
             }>
-              <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="productos" element={
                 <ProtectedRouteContent allowedRoles={['admin', 'oficinista']}>
