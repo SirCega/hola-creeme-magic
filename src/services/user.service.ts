@@ -49,7 +49,10 @@ export const getUserById = async (userId: string): Promise<User | null> => {
       email: data.email,
       name: data.name,
       role: data.role,
-      address: data.address
+      address: data.address,
+      phone: data.phone,
+      last_login: data.last_login,
+      created_at: data.created_at
     };
   } catch (error) {
     console.error("Error in getUserById:", error);
@@ -94,7 +97,10 @@ export const getAllUsers = async (currentUserRole?: string): Promise<User[]> => 
       email: user.email,
       name: user.name,
       role: user.role,
-      address: user.address
+      address: user.address,
+      phone: user.phone,
+      last_login: user.last_login,
+      created_at: user.created_at
     })) || [];
   } catch (error) {
     console.error("Error in getAllUsers:", error);
@@ -122,7 +128,10 @@ export const getCustomers = async (): Promise<User[]> => {
       email: user.email,
       name: user.name,
       role: user.role,
-      address: user.address
+      address: user.address,
+      phone: user.phone,
+      last_login: user.last_login,
+      created_at: user.created_at
     })) || [];
   } catch (error) {
     console.error("Error in getCustomers:", error);

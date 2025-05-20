@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Wine } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const Auth: React.FC = () => {
   // Login state
@@ -167,7 +169,13 @@ const Auth: React.FC = () => {
                     />
                   </div>
                   {loginError && (
-                    <div className="text-destructive text-sm">{loginError}</div>
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>
+                        {loginError}
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </CardContent>
                 <CardFooter className="flex flex-col">
@@ -246,7 +254,13 @@ const Auth: React.FC = () => {
                     />
                   </div>
                   {registerError && (
-                    <div className="text-destructive text-sm">{registerError}</div>
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>
+                        {registerError}
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </CardContent>
                 <CardFooter>

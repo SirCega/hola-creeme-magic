@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         setSupabaseUser(currentSession?.user ?? null);
@@ -41,10 +41,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             } catch (error) {
               console.error("Error fetching user data in auth change:", error);
+              setUser(null);
+            } finally {
+              setIsLoading(false);
             }
           }, 0);
         } else {
           setUser(null);
+          setIsLoading(false);
         }
       }
     );
@@ -109,10 +113,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Login error:", error);
       let errorMessage = "Error de autenticación";
       
-      if (error.message && error.message.includes("Invalid login credentials")) {
-        errorMessage = "Credenciales inválidas. Verifica tu email y contraseña.";
-      } else if (error.message && error.message.includes("Email not confirmed")) {
-        errorMessage = "Email no confirmado. Verifica tu bandeja de entrada.";
+      if (error.message) {
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Credenciales inválidas. Verifica tu email y contraseña.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Email no confirmado. Verifica tu bandeja de entrada.";
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Demasiados intentos. Inténtalo más tarde.";
+        } else {
+          errorMessage = error.message;
+        }
       }
       
       toast({
