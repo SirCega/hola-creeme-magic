@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Login function
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Initiating login with:", email);
@@ -106,7 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       navigate("/dashboard");
-      return userData;
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "Error de autenticación";
@@ -156,7 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Register a new client
-  const registerClient = async (userData: { email: string, password: string, name: string, address: string }) => {
+  const registerClient = async (userData: { email: string, password: string, name: string, address: string }): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Registering new client:", userData.email);

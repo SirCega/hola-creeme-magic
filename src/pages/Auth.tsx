@@ -14,12 +14,14 @@ const Auth: React.FC = () => {
   // Login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   
   // Register state
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerName, setRegisterName] = useState('');
   const [registerAddress, setRegisterAddress] = useState('');
+  const [registerError, setRegisterError] = useState('');
   
   const { login, registerClient, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -27,15 +29,19 @@ const Auth: React.FC = () => {
 
   const handleLoginWithEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError('');
     try {
+      console.log("Intentando iniciar sesión con:", email);
       await login(email, password);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error in form handler:", error);
+      setLoginError(error.message || 'Error al iniciar sesión');
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setRegisterError('');
     try {
       await registerClient({
         email: registerEmail,
@@ -43,8 +49,9 @@ const Auth: React.FC = () => {
         name: registerName,
         address: registerAddress
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error in form handler:", error);
+      setRegisterError(error.message || 'Error al registrarse');
     }
   };
 
@@ -98,6 +105,9 @@ const Auth: React.FC = () => {
                       required
                     />
                   </div>
+                  {loginError && (
+                    <div className="text-destructive text-sm">{loginError}</div>
+                  )}
                 </CardContent>
                 <CardFooter className="flex flex-col">
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -174,6 +184,9 @@ const Auth: React.FC = () => {
                       required
                     />
                   </div>
+                  {registerError && (
+                    <div className="text-destructive text-sm">{registerError}</div>
+                  )}
                 </CardContent>
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={isLoading}>

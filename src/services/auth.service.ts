@@ -8,18 +8,23 @@ import { getUserById } from './user.service';
  */
 export const signInWithEmail = async (email: string, password: string) => {
   console.log("Attempting to sign in with:", email);
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    console.error("Sign in error:", error);
+    if (error) {
+      console.error("Sign in error:", error);
+      throw error;
+    }
+
+    console.log("Sign in successful:", data);
+    return data;
+  } catch (error) {
+    console.error("Sign in service error:", error);
     throw error;
   }
-
-  console.log("Sign in successful:", data);
-  return data;
 };
 
 /**
@@ -45,49 +50,54 @@ export const registerClient = async (userData: {
   address: string 
 }) => {
   console.log("Registering client:", userData.email);
-  // Register user in Auth
-  const { data, error } = await supabase.auth.signUp({
-    email: userData.email,
-    password: userData.password,
-    options: {
-      data: {
-        name: userData.name,
-        role: 'cliente',
-        address: userData.address
-      }
-    }
-  });
-
-  if (error) {
-    console.error("Registration error:", error);
-    throw error;
-  }
-
-  if (!data.user) {
-    throw new Error("Error creating user");
-  }
-
-  console.log("User registered in auth:", data.user.id);
-
-  // Create user profile (without storing the password)
-  const { error: profileError } = await supabase
-    .from('users')
-    .insert({
-      id: data.user.id,
+  try {
+    // Register user in Auth
+    const { data, error } = await supabase.auth.signUp({
       email: userData.email,
-      name: userData.name,
-      role: 'cliente',
-      address: userData.address,
-      password: '' // Add an empty password field to satisfy the schema requirement
+      password: userData.password,
+      options: {
+        data: {
+          name: userData.name,
+          role: 'cliente',
+          address: userData.address
+        }
+      }
     });
 
-  if (profileError) {
-    console.error("Error creating profile:", profileError);
-    throw new Error(`Error creating profile: ${profileError.message}`);
-  }
+    if (error) {
+      console.error("Registration error:", error);
+      throw error;
+    }
 
-  console.log("User profile created");
-  return data;
+    if (!data.user) {
+      throw new Error("Error creating user");
+    }
+
+    console.log("User registered in auth:", data.user.id);
+
+    // Create user profile (without storing the password)
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert({
+        id: data.user.id,
+        email: userData.email,
+        name: userData.name,
+        role: 'cliente',
+        address: userData.address,
+        password: '' // Add an empty password field to satisfy the schema requirement
+      });
+
+    if (profileError) {
+      console.error("Error creating profile:", profileError);
+      throw new Error(`Error creating profile: ${profileError.message}`);
+    }
+
+    console.log("User profile created");
+    return data;
+  } catch (error) {
+    console.error("Registration service error:", error);
+    throw error;
+  }
 };
 
 /**
@@ -95,26 +105,31 @@ export const registerClient = async (userData: {
  */
 export const getCurrentSession = async () => {
   console.log("Getting current session");
-  const { data } = await supabase.auth.getSession();
-  
-  if (!data.session) {
-    console.log("No active session found");
-    return { session: null, user: null };
-  }
-  
-  console.log("Session found, user ID:", data.session.user.id);
   try {
-    const userData = await getUserById(data.session.user.id);
-    console.log("User data retrieved:", userData);
-    return {
-      session: data.session,
-      user: userData
-    };
+    const { data } = await supabase.auth.getSession();
+    
+    if (!data.session) {
+      console.log("No active session found");
+      return { session: null, user: null };
+    }
+    
+    console.log("Session found, user ID:", data.session.user.id);
+    try {
+      const userData = await getUserById(data.session.user.id);
+      console.log("User data retrieved:", userData);
+      return {
+        session: data.session,
+        user: userData
+      };
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      return {
+        session: data.session,
+        user: null
+      };
+    }
   } catch (error) {
-    console.error("Error fetching user data:", error);
-    return {
-      session: data.session,
-      user: null
-    };
+    console.error("Error getting current session:", error);
+    return { session: null, user: null };
   }
 };
