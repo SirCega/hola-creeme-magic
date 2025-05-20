@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PieChart, Package, Users, ShoppingCart } from 'lucide-react';
-import { getAllProducts } from '@/services/inventory.service';
+import { getProducts } from '@/services/inventory.service';
 import { getAllOrders } from '@/services/order.service';
 import { getAllUsers } from '@/services/user.service';
 import { useToast } from "@/hooks/use-toast"
@@ -25,7 +26,7 @@ const Dashboard: React.FC = () => {
 
     const loadData = async () => {
       try {
-        const products = await getAllProducts();
+        const products = await getProducts();
         setProductCount(products.length);
 
         const orders = await getAllOrders();

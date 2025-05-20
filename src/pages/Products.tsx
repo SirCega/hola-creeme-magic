@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,7 +37,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Product, useInventoryService } from '@/services/inventory.service';
+import { Product } from '@/types/inventory-types';
+import { useInventoryService } from '@/hooks/useInventoryService';
 
 const Products: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');

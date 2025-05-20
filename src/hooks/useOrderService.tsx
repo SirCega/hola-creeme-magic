@@ -1,19 +1,8 @@
 
 import { useState, useEffect } from 'react';
-import { 
-  getAllOrders, 
-  getAllInvoices,
-  getAllDeliveries,
-  getOrderById,
-  updateOrderStatus,
-  getCustomers
-} from '@/services/order.service';
-import { 
-  Order, 
-  Invoice, 
-  Delivery 
-} from '@/types/order-types';
+import { getOrders, getAllInvoices, getAllDeliveries, updateOrderStatus, getCustomers } from '@/services/order.service';
 import { User } from '@/types/auth-types';
+import { Order, Invoice, Delivery, OrderItem } from '@/types/order-types';
 
 export function useOrderService() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -33,7 +22,7 @@ export function useOrderService() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const data = await getAllOrders();
+      const data = getOrders();
       setOrders(data);
       setError(null);
     } catch (err) {
@@ -86,31 +75,12 @@ export function useOrderService() {
     }
   };
 
-  const getOrder = async (id: string) => {
+  const handleUpdateOrderStatus = async (orderId: string, status: string, deliveryPersonId?: number, deliveryPersonName?: string) => {
     try {
       setLoading(true);
-      const order = await getOrderById(id);
-      setError(null);
-      return order;
-    } catch (err) {
-      setError('Error loading order details');
-      console.error(err);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateStatus = async (orderId: string, status: string, deliveryPersonId?: number, deliveryPersonName?: string) => {
-    try {
-      setLoading(true);
-      const success = await updateOrderStatus(orderId, status, deliveryPersonId, deliveryPersonName);
-      if (success) {
-        await loadOrders();
-      } else {
-        setError('Failed to update order status');
-      }
-      return success;
+      await updateOrderStatus(orderId, status, deliveryPersonId, deliveryPersonName);
+      await loadOrders();
+      return true;
     } catch (err) {
       setError('Error updating order status');
       console.error(err);
@@ -131,7 +101,8 @@ export function useOrderService() {
     loadInvoices,
     loadDeliveries,
     loadCustomers,
-    getOrder,
-    updateStatus
+    updateOrderStatus: handleUpdateOrderStatus
   };
 }
+
+export type { Order, Invoice, Delivery, OrderItem };

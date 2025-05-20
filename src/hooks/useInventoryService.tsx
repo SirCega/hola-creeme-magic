@@ -10,15 +10,13 @@ import {
   deleteProduct,
   addMovement,
   addInventory,
-  updateInventory
-} from '@/services/inventory.service';
-import { 
+  updateInventory,
   Product,
   InventoryItem,
   Warehouse,
   Movement,
   TransferRequest
-} from '@/types/inventory-types';
+} from '@/services/inventory.service';
 
 export function useInventoryService() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -204,4 +202,5 @@ export function useInventoryService() {
   };
 }
 
-export type { Product, InventoryItem, Warehouse, Movement, TransferRequest } from '@/types/inventory-types';
+// Export the types to avoid circular dependencies
+export type { Product, InventoryItem, Warehouse, Movement, TransferRequest };

@@ -63,13 +63,14 @@ export const registerClient = async (userData: {
   // Create user profile (without storing the password)
   const { error: profileError } = await supabase
     .from('users')
-    .insert([{
+    .insert({
       id: data.user.id,
       email: userData.email,
       name: userData.name,
       role: 'cliente',
-      address: userData.address
-    }]);
+      address: userData.address,
+      password: '' // Add an empty password field to satisfy the schema requirement
+    });
 
   if (profileError) {
     console.error("Error al crear el perfil:", profileError);

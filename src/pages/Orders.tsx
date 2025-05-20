@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -50,18 +49,13 @@ import {
 import { useInventoryService } from '@/services/inventory.service';
 import { useAuth } from '@/hooks/useAuth';
 
+type Customer = User;
+
 const Orders: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [isViewOrderDialogOpen, setIsViewOrderDialogOpen] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
-  const [selectedWarehouse, setSelectedWarehouse] = useState('');
+  const { user } = useAuth();
   const { toast } = useToast();
   const orderService = useOrderService();
   const inventoryService = useInventoryService();
-  const { user } = useAuth();
   
   // Estado para los datos
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -73,23 +67,41 @@ const Orders: React.FC = () => {
   
   // Cargar datos iniciales
   useEffect(() => {
-    const loadCustomers = getCustomers();
-    const loadOrders = getOrders();
-    const loadProducts = inventoryService.getInventory().map(p => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      stock: p.mainWarehouse + p.warehouse1 + p.warehouse2 + p.warehouse3,
-      warehouse1: p.warehouse1,
-      warehouse2: p.warehouse2,
-      warehouse3: p.warehouse3,
-      mainWarehouse: p.mainWarehouse
-    }));
+    const loadData = async () => {
+      try {
+        // Load customers and convert to the expected format
+        const customersData = await orderService.loadCustomers();
+        setCustomers(orderService.customers);
+        
+        // Load orders
+        const ordersData = await orderService.loadOrders();
+        setOrders(ordersData);
+        
+        // Load products
+        const productsData = inventoryService.getInventory().map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          stock: p.mainWarehouse + p.warehouse1 + p.warehouse2 + p.warehouse3,
+          warehouse1: p.warehouse1,
+          warehouse2: p.warehouse2,
+          warehouse3: p.warehouse3,
+          mainWarehouse: p.mainWarehouse
+        }));
+        
+        setProducts(productsData);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast({
+          title: "Error",
+          description: "Error al cargar los datos",
+          variant: "destructive"
+        });
+      }
+    };
     
-    setCustomers(loadCustomers);
-    setOrders(loadOrders);
-    setProducts(loadProducts);
-  }, []);
+    loadData();
+  }, [orderService, inventoryService, toast]);
 
   // Filtrar pedidos según el rol del usuario y los filtros aplicados
   const filteredOrders = orders.filter(order => {

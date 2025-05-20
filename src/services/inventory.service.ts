@@ -85,6 +85,9 @@ export const getProducts = async (): Promise<Product[]> => {
   ];
 };
 
+// Alias for backward compatibility
+export const getAllProducts = getProducts;
+
 // Get all warehouses
 export const getWarehouses = async (): Promise<Warehouse[]> => {
   // This would be replaced with an actual API call
@@ -185,7 +188,7 @@ export const getMovements = async (): Promise<Movement[]> => {
 };
 
 // Get inventory for a specific warehouse
-export const getInventory = async (warehouseId: string): Promise<InventoryItem[]> => {
+export const getInventory = async (warehouseId?: string): Promise<InventoryItem[]> => {
   // This would be replaced with an actual API call
   return [];
 };
@@ -200,6 +203,28 @@ export const addProduct = async (product: Omit<Product, "id">): Promise<Product>
   };
 };
 
+// Update an existing product
+export const updateProduct = async (id: string, productData: Partial<Product>): Promise<Product> => {
+  // This would be replaced with an actual API call
+  console.log("Updating product:", id, productData);
+  return {
+    id,
+    name: productData.name || "",
+    sku: productData.sku || "",
+    price: productData.price || 0,
+    category: productData.category || "",
+    threshold: productData.threshold || 0,
+    box_qty: productData.box_qty || 0,
+    ...productData
+  };
+};
+
+// Delete a product
+export const deleteProduct = async (id: string): Promise<void> => {
+  // This would be replaced with an actual API call
+  console.log("Deleting product:", id);
+};
+
 // Add inventory movement
 export const addMovement = async (movement: Omit<Movement, "id" | "created_at">): Promise<Movement> => {
   // This would be replaced with an actual API call
@@ -208,6 +233,29 @@ export const addMovement = async (movement: Omit<Movement, "id" | "created_at">)
     id: Math.random().toString(36).substring(2, 11),
     created_at: new Date().toISOString(),
     ...movement
+  };
+};
+
+// Add inventory item
+export const addInventory = async (inventory: Omit<InventoryItem, "id">): Promise<InventoryItem> => {
+  // This would be replaced with an actual API call
+  console.log("Adding inventory:", inventory);
+  return {
+    id: Math.random().toString(36).substring(2, 11),
+    ...inventory
+  };
+};
+
+// Update inventory item
+export const updateInventory = async (id: string, inventoryData: Partial<InventoryItem>): Promise<InventoryItem> => {
+  // This would be replaced with an actual API call
+  console.log("Updating inventory:", id, inventoryData);
+  return {
+    id,
+    product_id: inventoryData.product_id || "",
+    warehouse_id: inventoryData.warehouse_id || "",
+    quantity: inventoryData.quantity || 0,
+    ...inventoryData
   };
 };
 
@@ -234,3 +282,6 @@ export const updateStock = async (productId: string, warehouseId: string, quanti
   // This would be replaced with an actual API call
   console.log(`Updating stock for product ${productId} in warehouse ${warehouseId}: ${quantity}`);
 };
+
+// Export the types to make them available
+export type { Product, Warehouse, Movement, TransferRequest, InventoryItem };
