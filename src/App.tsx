@@ -55,10 +55,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Default route redirects to Auth */}
+            {/* Default route redirects directly to Auth */}
             <Route path="/" element={<Navigate to="/auth" replace />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/login" element={<Navigate to="/auth" replace />} />
             
             <Route path="/" element={
               <ProtectedRouteContent>
